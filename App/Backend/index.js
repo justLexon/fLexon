@@ -147,13 +147,13 @@ app.post("/weight", async (req, res) => {
 
 // POST to create user at endpoint /users
 app.post("/users", async (req, res) => {
-    const {userEmail, userPassword} = req.body;
+    const {email, password_hash} = req.body;
 
     const hashed = "TEMP_HASH";
 
     const result = await pool.query(
-        "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id,, email",
-        [userEmail, hashed]
+        "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email",
+        [email, hashed]
     );
 
     res.json(result.rows[0]);
