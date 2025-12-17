@@ -1,3 +1,12 @@
+require('dotenv').config();
+
+// env variables
+const USER = process.env.USER;
+const HOST = process.env.HOST;
+const DATABASE = process.env.DATABASE;
+const PASSWORD = process.env.PASSWORD;
+const DBPORT = process.env.DBPORT;
+
 // express server
 const express = require("express");
 // progress
@@ -12,11 +21,11 @@ app.use(express.json());
 
 // postgres connection
 const pool = new Pool({
-  user: "t",
-  host: "t",
-  database: "t",
-  password: "t",
-  port: 5432,
+  user: USER,
+  host: HOST,
+  database: DATABASE,
+  password: PASSWORD,
+  port: DBPORT,
 });
 
 // temp
@@ -37,14 +46,57 @@ app.get("/health", (req, res) => {
 });
 
 // GET method for endpoint /water
-app.get("/water", (req, res) => {
-    res.json({
-        count: waterLogs.length,
-        data: waterLogs
-    });
+app.get("/water", async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT * FROM water_logs"
+        );
+
+        res.json({
+            count: result.rows.length,
+            data: result.rows
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch water logs"});
+    }
 });
 
-// POST method for endpoint /water
+// GET method for endpoint /weight
+app.get("/weight", async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT * FROM weight_logs"
+        );
+
+        res.json({
+            count: result.rows.length,
+            data: result.rows
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch weight logs"});
+    }
+});
+
+// GET method for endpoint /users
+app.get("/users", async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT * FROM users"
+        );
+
+        res.json({
+            count: result.rows.length,
+            data: result.rows
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch users"});
+    }
+});
+
+// POST to add water intake at endpoint /water
 app.post("/water", async (req, res) => {
     const { amount } = req.body;
 
@@ -54,7 +106,7 @@ app.post("/water", async (req, res) => {
 
     try {
         const result = await pool.query(
-            "INSERT INTO water_logs (amount) VALUES ($1) RETURNING *",
+            "INSERT INTO water_logs (amount) VALUES ($1)",
             [amount]
         );
 
@@ -68,28 +120,44 @@ app.post("/water", async (req, res) => {
     }
 });
 
-// POST method for enpoint /weight
-const weightLogs = [];
-
-app.post("/weight", (req, res) => {
+// POST to add weight entry at enpoint /weight
+app.post("/weight", async (req, res) => {
     const { amount } = req.body;
 
     if(!amount || amount <= 0) {
         return res.status(400).json({ error: "Invalid body weight"});
     }
 
-    const entry = {
-        amount,
-        timestamp: new Date()
-    };
-
-    weightLogs.push(entry);
-
-    res.status(201).json({
-        success: true,
-        weightEntry: entry
-    });
+    try {
+        const result = await pool.query(
+            "INSERT INTO weight_logs (amount) VALUES ($1)",
+            [amount]
+        );
+        
+        res.status(201).json({
+            success: true,
+            data: result.rows[0]
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to save body weight"});
+    }
 });
+
+
+// POST to create user at endpoint /users
+app.post("/users", async (req, res) => {
+    const {userEmail, userPassword} = req.body;
+
+    const hashed = "TEMP_HAS";
+
+    const result = await pool.query(
+        "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id,, email",
+        [userEmail, hashed]
+    );
+
+    res.json(result.rows[0]);
+})
 
 
 // start server

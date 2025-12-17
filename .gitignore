@@ -1,5 +1,11 @@
+/DB.md
+
+/node_modules
+/package-lock.json
+/package.json
+
+
 /App/Backend/node_modules
 /App/Backend/package-lock.json
 /App/Backend/package.json
-
-/DB.md
+/App/Backend/.env
