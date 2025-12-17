@@ -1,18 +1,20 @@
 require('dotenv').config();
 
 // env variables
-const USER = process.env.USER;
-const HOST = process.env.HOST;
-const DATABASE = process.env.DATABASE;
-const PASSWORD = process.env.PASSWORD;
-const DBPORT = process.env.DBPORT;
+// const DB_USER = process.env.DB_USER;
+// const HOST = process.env.DB_HOST;
+// const DATABASE = process.env.DB_DATABASE;
+// const PASSWORD = process.env.DB_PASSWORD;
+// const DBPORT = process.env.DB_PORT;
 
+const sql = require("./db");
 // express server
 const express = require("express");
-// progress
-const { Pool } = require("pg");
+// postgres
+// const { Pool } = require("pg");
 // encryption
 const bcrypt = require("bcrypt");
+// authorization
 const jwt = require("jsonwebtoken");
 
 // port 3000
@@ -22,20 +24,50 @@ const PORT = 3000;
 // use json format
 app.use(express.json());
 
-// postgres connection
-const pool = new Pool({
-  user: USER,
-  host: HOST,
-  database: DATABASE,
-  password: PASSWORD,
-  port: DBPORT,
-});
+// // postgres connection
+// const pool = new Pool({
+// //   user: DB_USER,
+// //   host: HOST,
+// //   database: DATABASE,
+// //   password: PASSWORD,
+// //   port: DBPORT,
+//   connectionString: process.env.DATABASE_URL,
+//   ssl: { rejectUnauthorized: false }
+// });
+
+
+
+// FUNCTIONS
+function authMiddleware(req, res, next) {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+        return res.status(401).json({ error: "Missing authorization header"});
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    if (!token) {
+        return res.status(401).json({ error: "Missing token"});
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        req.userId = decoded.userId;
+
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: "Invalid or expired token"});
+    }
+}   
+
 
 // temp
 app.get("/db_test", async (req, res) => {
     try {
-        const result = await pool.query("SELECT NOW()");
-        res.json({ success: true, time: result.rows[0] });
+        const result = await sql`SELECT NOW()`;
+        res.json({ success: true, time: result[0] });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Database connection failed"});
@@ -48,16 +80,20 @@ app.get("/health", (req, res) => {
     res.json({ status: "ok", message: "Backend running" });
 });
 
+
+
 // GET method for endpoint /water
-app.get("/water", async (req, res) => {
+app.get("/water", authMiddleware, async (req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT * FROM water_logs"
-        );
+        const result = await sql`
+            SELECT * FROM water_logs 
+            WHERE user_id = ${req.userId}
+            ORDER BY created_at DESC
+        `;
 
         res.json({
-            count: result.rows.length,
-            data: result.rows
+            count: result.length,
+            data: result
         });
     } catch (err) {
         console.error(err);
@@ -66,10 +102,11 @@ app.get("/water", async (req, res) => {
 });
 
 // GET method for endpoint /weight
-app.get("/weight", async (req, res) => {
+app.get("/weight", authMiddleware, async (req, res) => {
     try {
         const result = await pool.query(
-            "SELECT * FROM weight_logs"
+            "SELECT * FROM weight_logs WHERE user_id = $1 ORDER BY created_at DESC",
+            [req.userId]
         );
 
         res.json({
@@ -82,26 +119,9 @@ app.get("/weight", async (req, res) => {
     }
 });
 
-// Secure later
-// // GET method for endpoint /users
-// app.get("/users", async (req, res) => {
-//     try {
-//         const result = await pool.query(
-//             "SELECT * FROM users"
-//         );
-
-//         res.json({
-//             count: result.rows.length,
-//             data: result.rows
-//         });
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).json({ error: "Failed to fetch users"});
-//     }
-// });
 
 // POST to add water intake at endpoint /water
-app.post("/water", async (req, res) => {
+app.post("/water", authMiddleware, async (req, res) => {
     const { amount } = req.body;
 
     if(!amount || amount <= 0)  {
@@ -109,14 +129,15 @@ app.post("/water", async (req, res) => {
     }
 
     try {
-        const result = await pool.query(
-            "INSERT INTO water_logs (amount) VALUES ($1)",
-            [amount]
-        );
+        const result = await sql`
+            INSERT INTO water_logs (amount, user_id) 
+            VALUES (${amount}, ${req.userId})
+            RETURNING *
+        `;
 
         res.status(201).json({
             success: true,
-            data: result.rows[0],
+            data: result[0],
         });
     } catch (err) {
         console.error(err);
@@ -125,7 +146,7 @@ app.post("/water", async (req, res) => {
 });
 
 // POST to add weight entry at enpoint /weight
-app.post("/weight", async (req, res) => {
+app.post("/weight", authMiddleware, async (req, res) => {
     const { amount } = req.body;
 
     if(!amount || amount <= 0) {
@@ -133,10 +154,11 @@ app.post("/weight", async (req, res) => {
     }
 
     try {
-        const result = await pool.query(
-            "INSERT INTO weight_logs (amount) VALUES ($1) RETURNING *",
-            [amount]
-        );
+        const result = await sql`
+            INSERT INTO weight_logs (amount, user_id) 
+            VALUES (${amount}, ${req.userId}) 
+            RETURNING *
+        `;
         
         res.status(201).json({
             success: true,
@@ -161,26 +183,26 @@ app.post("/auth/register", async (req, res) => {
     }
 
     try {
-        const existing = await pool.query(
-            "SELECT id FROM users WHERE email = $1",
-            [email]
-        );
+        const existing = await sql`
+            SELECT id FROM users WHERE email = ${email}
+        `;
 
-        if (existing.rows.length > 0) {
+        if (existing.length > 0) {
             return res.status(409).json({ error: "User already exists"});
         }
 
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
-        const result = await pool.query(
-            `INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at`,
-            [email, passwordHash]
-        );
+        const result = await sql`
+            INSERT INTO users (email, password_hash) 
+            VALUES (${email}, ${passwordHash}) 
+            RETURNING id, email, created_at
+        `;
 
         res.status(201).json({ 
             success: true,
-            user: result.rows[0],
+            user: result[0],
         });
     } catch (err) {
         console.error(err);
@@ -197,16 +219,17 @@ app.post("/auth/login", async (req, res) => {
     }
 
     try { 
-        const result = await pool.query(
-            "SELECT id, email, password_hash FROM users WHERE email = $1",
-            [email]
-        );
+        const result = await sql`
+            SELECT id, email, password_hash 
+            FROM users 
+            WHERE email = ${email}
+        `;
 
-        if (result.rows.length === 0) {
+        if (result.length === 0) {
             return res.status(401).json({ error: "Invalid credentials"});
         }
 
-        const user = result.rows[0];
+        const user = result[0];
 
         const isMatch = await bcrypt.compare(password, user.password_hash);
 
