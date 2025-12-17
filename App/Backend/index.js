@@ -11,6 +11,8 @@ const DBPORT = process.env.DBPORT;
 const express = require("express");
 // progress
 const { Pool } = require("pg");
+// encryption
+const bcrypt = require("bcrypt");
 
 // port 3000
 const app = express();
@@ -145,20 +147,59 @@ app.post("/weight", async (req, res) => {
 });
 
 
-// POST to create user at endpoint /users
-app.post("/users", async (req, res) => {
-    const {email, password_hash} = req.body;
+// // POST to create user at endpoint /users
+// app.post("/users", async (req, res) => {
+//     const {email, password_hash} = req.body;
 
-    const hashed = "TEMP_HASH";
+//     const hashed = "TEMP_HASH";
 
-    const result = await pool.query(
-        "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email",
-        [email, hashed]
-    );
+//     const result = await pool.query(
+//         "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email",
+//         [email, hashed]
+//     );
 
-    res.json(result.rows[0]);
-})
+//     res.json(result.rows[0]);
+// })
 
+app.post("/auth/register", async (req, res) => {
+    const {email, password} = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ error: "Email and password required"}); 
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ error: "Passwowrd must be at least 6 characters"});
+    }
+
+    try {
+        const existing = await pool.query(
+            "SELECT id FROM users WHERE email = $1",
+
+            [email]
+        );
+
+        if (existing.rows.length > 0) {
+            return res.status(409).json({ error: "User already exists"});
+        }
+
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+
+        const result = await pool.query(
+            `INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at`,
+            [email, passwordHash]
+        );
+
+        res.status(201).json({ 
+            success: true,
+            user: result.rows[0],
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Registration failed"});
+    }
+});
 
 // start server
 app.listen(PORT, () => {
