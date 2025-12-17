@@ -13,6 +13,7 @@ const express = require("express");
 const { Pool } = require("pg");
 // encryption
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 // port 3000
 const app = express();
@@ -81,22 +82,23 @@ app.get("/weight", async (req, res) => {
     }
 });
 
-// GET method for endpoint /users
-app.get("/users", async (req, res) => {
-    try {
-        const result = await pool.query(
-            "SELECT * FROM users"
-        );
+// Secure later
+// // GET method for endpoint /users
+// app.get("/users", async (req, res) => {
+//     try {
+//         const result = await pool.query(
+//             "SELECT * FROM users"
+//         );
 
-        res.json({
-            count: result.rows.length,
-            data: result.rows
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Failed to fetch users"});
-    }
-});
+//         res.json({
+//             count: result.rows.length,
+//             data: result.rows
+//         });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ error: "Failed to fetch users"});
+//     }
+// });
 
 // POST to add water intake at endpoint /water
 app.post("/water", async (req, res) => {
@@ -132,7 +134,7 @@ app.post("/weight", async (req, res) => {
 
     try {
         const result = await pool.query(
-            "INSERT INTO weight_logs (amount) VALUES ($1)",
+            "INSERT INTO weight_logs (amount) VALUES ($1) RETURNING *",
             [amount]
         );
         
@@ -146,23 +148,9 @@ app.post("/weight", async (req, res) => {
     }
 });
 
-
-// // POST to create user at endpoint /users
-// app.post("/users", async (req, res) => {
-//     const {email, password_hash} = req.body;
-
-//     const hashed = "TEMP_HASH";
-
-//     const result = await pool.query(
-//         "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email",
-//         [email, hashed]
-//     );
-
-//     res.json(result.rows[0]);
-// })
-
+// POST to create user at endpoint /auth/register
 app.post("/auth/register", async (req, res) => {
-    const {email, password} = req.body;
+    const { email, password } = req.body;
 
     if (!email || !password) {
         return res.status(400).json({ error: "Email and password required"}); 
@@ -175,7 +163,6 @@ app.post("/auth/register", async (req, res) => {
     try {
         const existing = await pool.query(
             "SELECT id FROM users WHERE email = $1",
-
             [email]
         );
 
@@ -198,6 +185,52 @@ app.post("/auth/register", async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Registration failed"});
+    }
+});
+
+// Post for /auth/login
+app.post("/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+
+    if(!email || !password) {
+        return res.status(400).json({ error: "Email and password required"});
+    }
+
+    try { 
+        const result = await pool.query(
+            "SELECT id, email, password_hash FROM users WHERE email = $1",
+            [email]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(401).json({ error: "Invalid credentials"});
+        }
+
+        const user = result.rows[0];
+
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+
+        if (!isMatch) {
+            return res.status(401).json({ error: "Invalid credentials"});
+        }
+
+        const token = jwt.sign(
+            { userId: user.id },
+            process.env.JWT_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        res.json ({
+            success: true,
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+            },
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Login failed"});
     }
 });
 
