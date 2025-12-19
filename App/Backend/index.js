@@ -104,14 +104,15 @@ app.get("/water", authMiddleware, async (req, res) => {
 // GET method for endpoint /weight
 app.get("/weight", authMiddleware, async (req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT * FROM weight_logs WHERE user_id = $1 ORDER BY created_at DESC",
-            [req.userId]
-        );
+        const result = await sql`
+            SELECT * FROM weight_logs 
+            WHERE ${req.userId} = $1 
+            ORDER BY created_at DESC
+        `;
 
         res.json({
-            count: result.rows.length,
-            data: result.rows
+            count: result.length,
+            data: result
         });
     } catch (err) {
         console.error(err);
@@ -124,7 +125,7 @@ app.get("/weight", authMiddleware, async (req, res) => {
 app.post("/water", authMiddleware, async (req, res) => {
     const { amount } = req.body;
 
-    if(!amount || amount <= 0)  {
+    if(!amount || amount <= 0 || amount > 400)  {
         return res.status(400).json({ error: "Invalid water amount" });
     }
 
@@ -149,7 +150,7 @@ app.post("/water", authMiddleware, async (req, res) => {
 app.post("/weight", authMiddleware, async (req, res) => {
     const { amount } = req.body;
 
-    if(!amount || amount <= 0) {
+    if(!amount || amount <= 0 || amount >= 1000) {
         return res.status(400).json({ error: "Invalid body weight"});
     }
 
@@ -162,7 +163,7 @@ app.post("/weight", authMiddleware, async (req, res) => {
         
         res.status(201).json({
             success: true,
-            data: result.rows[0]
+            data: result[0]
         });
     } catch (err) {
         console.error(err);
@@ -179,7 +180,7 @@ app.post("/auth/register", async (req, res) => {
     }
 
     if (password.length < 6) {
-        return res.status(400).json({ error: "Passwowrd must be at least 6 characters"});
+        return res.status(400).json({ error: "Password must be at least 6 characters"});
     }
 
     try {
