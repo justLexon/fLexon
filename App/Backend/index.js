@@ -19,7 +19,7 @@ const jwt = require("jsonwebtoken");
 
 // port 3000
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // use json format
 app.use(express.json());
@@ -106,7 +106,7 @@ app.get("/weight", authMiddleware, async (req, res) => {
     try {
         const result = await sql`
             SELECT * FROM weight_logs 
-            WHERE ${req.userId} = $1 
+            WHERE user_id = ${req.userId}
             ORDER BY created_at DESC
         `;
 
