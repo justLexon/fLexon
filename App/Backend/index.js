@@ -74,13 +74,10 @@ app.get("/db_test", async (req, res) => {
     }
 });
 
-
-// GET method for endpoint /health
-app.get("/health", (req, res) => {
+// GET endpoint to show backend is running
+app.get("/", (req, res) => {
     res.json({ status: "ok", message: "Backend running" });
 });
-
-
 
 // GET method for endpoint /water
 app.get("/water", authMiddleware, async (req, res) => {
