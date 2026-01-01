@@ -1,17 +1,8 @@
 require('dotenv').config();
 
-// env variables
-// const DB_USER = process.env.DB_USER;
-// const HOST = process.env.DB_HOST;
-// const DATABASE = process.env.DB_DATABASE;
-// const PASSWORD = process.env.DB_PASSWORD;
-// const DBPORT = process.env.DB_PORT;
-
 const sql = require("./db");
 // express server
 const express = require("express");
-// postgres
-// const { Pool } = require("pg");
 // encryption
 const bcrypt = require("bcrypt");
 // authorization
@@ -23,18 +14,6 @@ const PORT = process.env.PORT || 3000;
 
 // use json format
 app.use(express.json());
-
-// // postgres connection
-// const pool = new Pool({
-// //   user: DB_USER,
-// //   host: HOST,
-// //   database: DATABASE,
-// //   password: PASSWORD,
-// //   port: DBPORT,
-//   connectionString: process.env.DATABASE_URL,
-//   ssl: { rejectUnauthorized: false }
-// });
-
 
 
 // FUNCTIONS
@@ -63,7 +42,7 @@ function authMiddleware(req, res, next) {
 }   
 
 
-// temp
+// temporary: test for connection to Supabase
 app.get("/db_test", async (req, res) => {
     try {
         const result = await sql`SELECT NOW()`;
