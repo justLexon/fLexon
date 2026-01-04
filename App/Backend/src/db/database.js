@@ -1,7 +1,9 @@
 const postgres = require("postgres");
 
 const sql = postgres(process.env.DATABASE_URL, {
-  ssl: "require"
+  ssl: "require",
+  max: 1,
+  idle_timeout: 20
 });
 
 module.exports = sql;

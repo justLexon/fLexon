@@ -15,23 +15,36 @@ exports.register = async (email, password) => {
         throw new Error("Password must be at least 6 characters");
     }
 
-    const existing = await sql`
-        SELECT id FROM users WHERE email = ${email.toLowerCase()}
-    `;
+    try {
+            const passwordHash = await bcrypt.hash(password, 10);
+
+            const result = await sql`
+            INSERT INTO users (email, password_hash) 
+            VALUES (${email}, ${passwordHash}) 
+            RETURNING id, email, created_at
+        `;
+
+        return result[0];
+    } catch (err) {
+        if (err.code === "23505") {
+            throw err;
+        }
+        throw err;
+    }
 
     if (existing.length > 0) {
        throw new Error("User already exists");
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    // const passwordHash = await bcrypt.hash(password, 10);
 
-    const result = await sql`
-        INSERT INTO users (email, password_hash) 
-        VALUES (${email}, ${passwordHash}) 
-        RETURNING id, email, created_at
-    `;
+    // const result = await sql`
+    //     INSERT INTO users (email, password_hash) 
+    //     VALUES (${email}, ${passwordHash}) 
+    //     RETURNING id, email, created_at
+    // `;
 
-    return result[0];
+    // return result[0];
 };
 
 
@@ -42,7 +55,7 @@ exports.login = async (email, password) => {
     const result = await sql`
         SELECT id, email, password_hash 
         FROM users 
-        WHERE email = ${email.toLowerCase()}
+        WHERE email = ${email}
     `;
 
     if (result.length === 0) {
