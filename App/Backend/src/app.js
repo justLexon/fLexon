@@ -1,4 +1,5 @@
 require('dotenv').config();
+const corsConfig = require("./config/cors");
 
 const express = require("express");
 const app = express();
@@ -10,6 +11,7 @@ const weightRoutes = require("./routes/weightRoutes/weight");
 
 
 app.use(express.json());
+app.use(corsConfig);
 app.use(cookieParser());
 
 app.use("/auth", authRoutes);
