@@ -13,7 +13,7 @@ export default function RegisterPage() {
         setError(null);
 
         try {
-            await apiFetch("/atuh/register", {
+            await apiFetch("/auth/register", {
                 method: "POST",
                 body: JSON.stringify({ email, password }),
             });
