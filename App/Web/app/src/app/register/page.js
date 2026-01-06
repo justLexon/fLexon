@@ -1,50 +1,55 @@
 "use client";
-
 import { useState } from "react";
-import { apiFetch } from "../lib/api";
 
 export default function RegisterPage() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-    async function handleRegister(e) {
-        e.preventDefault();
-        setError(null);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-        try {
-            await apiFetch("/auth/register", {
-                method: "POST",
-                body: JSON.stringify({ email, password }),
-            });
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/auth/register`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // IMPORTANT for cookies
+        body: JSON.stringify({ email, password }),
+      }
+    );
 
-            alert("Registerd!! NOW LOG IN!!");
-        } catch (err) {
-            setError(err.message);
-        }
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error);
+      return;
     }
 
-    return (
-        <div>
-            <h1>Registerd</h1>
+    alert("Registered!");
+  };
 
-            <form onSubmit={handleRegister}>
-                <input
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
+  return (
+    <form onSubmit={handleSubmit}>
+      <h1>Register</h1>
 
-                <input
-                    type="passwored"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
-                <button type="submit">Registerd</button>
-            </form>
+      <input
+        type="email"
+        placeholder="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
 
-            {error && <p style={{ color: "red" }}> {error}</p>}
-        </div>
-    )
+      <input
+        type="password"
+        placeholder="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <button type="submit">Register</button>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+    </form>
+  );
 }
