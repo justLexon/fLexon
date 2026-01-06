@@ -1,11 +1,18 @@
-/DB.md
+# dependencies
+node_modules/
 
-# /node_modules
-# /package-lock.json
-# /package.json
+# env
+.env
+.env.*
 
+# Next.js
+.next/
+out/
 
-# /App/Backend/node_modules
-# /App/Backend/package-lock.json
-# /App/Backend/package.json
-/App/Backend/.env
+# logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store

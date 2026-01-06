@@ -2,7 +2,7 @@ const sql = require("../db/database.js");
 
 exports.addWeight = async (userId, amount) => {
     const result = await sql`
-        INSERT INTO water_logs (amount, user_id)
+        INSERT INTO weight_logs (amount, user_id)
         VALUES (${amount}, ${userId})
         RETURNING *
         `

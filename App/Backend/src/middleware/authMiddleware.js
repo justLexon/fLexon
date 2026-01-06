@@ -2,13 +2,8 @@
 const jwt = require("jsonwebtoken");
 
 module.exports = function authMiddleware(req, res, next) {
-    const authHeader = req.headers.authorization;
+    const token = req.cookies.access_token;
 
-    if (!authHeader) {
-        return res.status(401).json({ error: "Missing authorization header"});
-    }
-
-    const token = authHeader.split(" ")[1];
     if (!token) {
         return res.status(401).json({ error: "Missing token"});
     }
