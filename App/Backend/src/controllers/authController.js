@@ -39,7 +39,7 @@ exports.login = async (req, res) => {
 
         res.cookie("access_token", token, {
             httpOnly: true,
-            secure: true,
+            secure: false,
             sameSite: "none",
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
@@ -57,7 +57,7 @@ exports.login = async (req, res) => {
 exports.logout = async (req, res) => {
      res.clearCookie("access_token", {
         httpOnly: true,
-        secure: true,
+        secure: false,
         sameSite: "none",
     });
     res.json({ success: true });
