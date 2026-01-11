@@ -1,9 +1,9 @@
 const router = require("express").Router();
 const authMiddleware = require("../../middleware/authMiddleware");
-const { addWeight } = require("../../controllers/weightController");
-const { getWeightWithUser } = require("../../services/weightService.js");
+const { addWeight, getWeight } = require("../../controllers/weightController");
+const { getWeightWithUser } = require("../../controllers/weightService.js");
 
-router.get("/", authMiddleware, getWeightWithUser)
+router.get("/", authMiddleware, getWeight)
 router.post("/", authMiddleware, addWeight);
 
 module.exports = router;
