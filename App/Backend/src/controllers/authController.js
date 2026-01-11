@@ -32,7 +32,7 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        const result = await authService.login(
+        const { token, user } = await authService.login(
             req.body.email,
             req.body.password
         );
