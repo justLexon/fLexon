@@ -30,29 +30,36 @@ exports.register = async (req, res) => {
 };
 
 
-exports.login = async (email, password) => {
-  const user = await db.query("SELECT * FROM users WHERE email = $1", [email]);
-  if (!user || !checkPassword(password, user.password)) {
-    throw new Error("Invalid credentials");
-  }
+exports.login = async (req, res) => {
+    try {
+        const { token, user } = await authService.login(
+            req.body.email,
+            req.body.password
+        );
 
-  const token = jwt.sign(
-    { userId: user.id }, 
-    process.env.JWT_SECRET, 
-    { expiresIn: "7d" }
-  );
-
-  return { token, user };
+        res.cookie("access_token", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // false for dev, true for prod
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'lax' for localhost
+            path: "/",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        res.json({ success: true, token, user });
+    } catch (err) {
+        if (err.message === "Invalid credentials") {
+            return res.status(401).json({ error: "Invalid credentials" });
+        }
+        console.error(err);
+        res.status(500).json({ error: "Login failed" });
+    }
 };
-
-
 
 exports.logout = async (req, res) => {
     res.clearCookie("access_token", {
         httpOnly: true,
-        secure: false, // localhost, true for prod
-        sameSite: "none", // must match the cookie settings when set
-        path: "/",       // VERY IMPORTANT
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        path: "/",
     });
     res.json({ success: true });
 };
