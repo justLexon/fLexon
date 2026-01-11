@@ -43,7 +43,7 @@ exports.login = async (req, res) => {
             sameSite: "strict",
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
-        res.json({ success: true, user });
+        res.json({ success: true, token, user });
     } catch (err) {
         if (err.message === "Invalid credentials") {
             return res.status(401).json({ error: "Invalid credentials" });
