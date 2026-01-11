@@ -32,6 +32,9 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
+        if (!req.body.email || !req.body.password) {
+            return res.status(400).json({ error: "Missing an email or password" });
+        }
         const { token, user } = await authService.login(
             req.body.email,
             req.body.password
