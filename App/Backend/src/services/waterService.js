@@ -11,7 +11,7 @@ exports.addWater = async (userId, amount) => {
 };
 
 
-// POST or GET water with User email
+// GET water with User email
 exports.getWaterWithUser = async (userId) => {
     const result = await sql`
         SELECT
