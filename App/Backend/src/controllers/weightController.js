@@ -8,3 +8,13 @@ exports.addWeight = async (req, res) => {
 
     res.status(201).json({ success: true, data: entry });
 }
+
+exports.getWeight = async (req, res) => {
+    try {
+        const weightLogs = await weightService.getWeightWithUser(req.userId);
+        res.json(weightLogs);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch weight logs" });
+    }
+};
