@@ -30,29 +30,21 @@ exports.register = async (req, res) => {
 };
 
 
-exports.login = async (req, res) => {
-    try {
-        const { token, user } = await authService.login(
-            req.body.email,
-            req.body.password
-        );
+exports.login = async (email, password) => {
+  const user = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+  if (!user || !checkPassword(password, user.password)) {
+    throw new Error("Invalid credentials");
+  }
 
-        res.cookie("access_token", token, {
-            httpOnly: true,
-            secure: false,
-            sameSite: "none",
-            path: "/",       // VERY IMPORTANT
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
-        res.json({ success: true, token, user });
-    } catch (err) {
-        if (err.message === "Invalid credentials") {
-            return res.status(401).json({ error: "Invalid credentials" });
-        }
-        console.error(err);
-        res.status(500).json({ error: "Login failed" });
-    }
+  const token = jwt.sign(
+    { userId: user.id }, 
+    process.env.JWT_SECRET, 
+    { expiresIn: "7d" }
+  );
+
+  return { token, user };
 };
+
 
 
 exports.logout = async (req, res) => {
