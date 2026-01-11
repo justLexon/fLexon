@@ -41,6 +41,7 @@ exports.login = async (req, res) => {
             httpOnly: true,
             secure: false,
             sameSite: "none",
+            path: "/",       // VERY IMPORTANT
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
         res.json({ success: true, token, user });
@@ -55,10 +56,11 @@ exports.login = async (req, res) => {
 
 
 exports.logout = async (req, res) => {
-     res.clearCookie("access_token", {
+    res.clearCookie("access_token", {
         httpOnly: true,
-        secure: false,
-        sameSite: "none",
+        secure: false, // localhost, true for prod
+        sameSite: "none", // must match the cookie settings when set
+        path: "/",       // VERY IMPORTANT
     });
     res.json({ success: true });
 };
