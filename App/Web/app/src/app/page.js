@@ -27,7 +27,7 @@ export default function Home() {
     return { text, json };
   };
 
-  const fetchWithTimeout = async (url, options, timeoutMs = 8000) => {
+  const fetchWithTimeout = async (url, options, timeoutMs = 60000) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 

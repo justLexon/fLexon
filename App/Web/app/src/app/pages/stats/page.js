@@ -44,7 +44,20 @@ export default function GlobalStatsPage() {
   }, [router]);
 
   if (loading) {
-    return <p className={styles.loading}>Loading...</p>;
+    return (
+      <div className={styles.page}>
+        <main className={styles.main}>
+          <div className={styles.loadingWrap}>
+            <div className={styles.loadingCard}>
+              <span className={styles.loadingDot} />
+              <span className={styles.loadingDot} />
+              <span className={styles.loadingDot} />
+              <p className={styles.loadingText}>Loading stats…</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   if (error) {
@@ -74,7 +87,7 @@ export default function GlobalStatsPage() {
   const waterSeries = buildSeries(stats.water_daily_series);
   const weightSeries = buildSeries(stats.weight_daily_series);
 
-  const renderSparkline = (series, color) => {
+  const renderChart = (series, color, yLabel) => {
     if (!series.length || series.every((p) => !p.hasValue)) {
       return <p className={styles.muted}>No data yet</p>;
     }
@@ -83,29 +96,93 @@ export default function GlobalStatsPage() {
     const max = Math.max(...values, 1);
     const min = Math.min(...values, 0);
     const range = Math.max(1, max - min);
-    const width = 240;
-    const height = 64;
-    const step = width / Math.max(1, series.length - 1);
+    const width = 360;
+    const height = 140;
+    const padding = { top: 12, right: 16, bottom: 28, left: 40 };
+    const innerWidth = width - padding.left - padding.right;
+    const innerHeight = height - padding.top - padding.bottom;
+    const step = innerWidth / Math.max(1, series.length - 1);
 
     const points = series
       .map((p, index) => {
-        const x = index * step;
-        const y = height - ((p.value - min) / range) * height;
+        const x = padding.left + index * step;
+        const y =
+          padding.top + innerHeight - ((p.value - min) / range) * innerHeight;
         return `${x},${y}`;
       })
       .join(" ");
 
+    const firstDate = series[0]?.date;
+    const lastDate = series[series.length - 1]?.date;
+    const yMax = Math.round(max);
+    const yMin = Math.round(min);
+
     return (
       <svg
-        className={styles.sparkline}
+        className={styles.chart}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
       >
+        <line
+          x1={padding.left}
+          y1={padding.top}
+          x2={padding.left}
+          y2={padding.top + innerHeight}
+          stroke="#c7dbcf"
+        />
+        <line
+          x1={padding.left}
+          y1={padding.top + innerHeight}
+          x2={padding.left + innerWidth}
+          y2={padding.top + innerHeight}
+          stroke="#c7dbcf"
+        />
+        <text
+          x={padding.left - 8}
+          y={padding.top + 10}
+          textAnchor="end"
+          className={styles.axisLabel}
+        >
+          {yMax}
+        </text>
+        <text
+          x={padding.left - 8}
+          y={padding.top + innerHeight}
+          textAnchor="end"
+          className={styles.axisLabel}
+        >
+          {yMin}
+        </text>
+        <text
+          x={padding.left}
+          y={height - 8}
+          textAnchor="start"
+          className={styles.axisLabel}
+        >
+          {firstDate}
+        </text>
+        <text
+          x={padding.left + innerWidth}
+          y={height - 8}
+          textAnchor="end"
+          className={styles.axisLabel}
+        >
+          {lastDate}
+        </text>
+        <text
+          x={12}
+          y={padding.top + innerHeight / 2}
+          textAnchor="middle"
+          className={styles.axisLabel}
+          transform={`rotate(-90 12 ${padding.top + innerHeight / 2})`}
+        >
+          {yLabel}
+        </text>
         <polyline
           points={points}
           fill="none"
           stroke={color}
-          strokeWidth="2"
+          strokeWidth="2.5"
         />
       </svg>
     );
@@ -132,7 +209,7 @@ export default function GlobalStatsPage() {
               <p className={styles.caption}>Last 30 days (UTC)</p>
             </div>
             <div className={styles.chartPanel}>
-              {renderSparkline(waterSeries, "#1f6b3f")}
+              {renderChart(waterSeries, "#1f6b3f", "Avg")}
             </div>
           </div>
           <div className={styles.rowCard}>
@@ -142,7 +219,7 @@ export default function GlobalStatsPage() {
               <p className={styles.caption}>Last 30 days (UTC)</p>
             </div>
             <div className={styles.chartPanel}>
-              {renderSparkline(weightSeries, "#2f8751")}
+              {renderChart(weightSeries, "#2f8751", "Avg")}
             </div>
           </div>
           <div className={styles.rowCard}>

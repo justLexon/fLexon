@@ -234,6 +234,15 @@
   font-size: 13px;
 }
 
+.dateInput {
+  border-radius: 10px;
+  border: 1px solid rgba(15, 59, 38, 0.2);
+  padding: 6px 10px;
+  background: var(--forest-100);
+  color: var(--forest-900);
+  font-size: 13px;
+}
+
 .logItem {
   display: flex;
   align-items: center;
@@ -278,9 +287,55 @@
   color: var(--forest-600);
 }
 
-.loading {
-  padding: 40px;
-  text-align: center;
+.inlineLoading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--forest-600);
+  font-size: 12px;
+}
+
+.inlineText {
+  margin-left: 4px;
+}
+
+.loadingWrap {
+  width: 100%;
+  min-height: 50vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loadingCard {
+  background: white;
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 12px 24px var(--shadow);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loadingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--forest-700);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.loadingDot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loadingDot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.loadingText {
+  margin: 0 0 0 6px;
+  font-size: 12px;
   color: var(--forest-700);
 }
 
@@ -373,5 +428,17 @@
 
   .actionRow {
     grid-template-columns: 1fr;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
   }
 }

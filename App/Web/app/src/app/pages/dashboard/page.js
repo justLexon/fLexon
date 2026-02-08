@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
@@ -13,6 +13,8 @@ export default function Dashboard() {
   const [newWeightAmount, setNewWeightAmount] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [waterLoading, setWaterLoading] = useState(false);
+  const [weightLoading, setWeightLoading] = useState(false);
   const [needsLogin, setNeedsLogin] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
@@ -24,6 +26,9 @@ export default function Dashboard() {
   const [pageSize, setPageSize] = useState(5);
   const [waterPage, setWaterPage] = useState(1);
   const [weightPage, setWeightPage] = useState(1);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const loadingTimeoutRef = useRef(null);
 
   const getAuthHeaders = () => {
     if (typeof window === "undefined") return {};
@@ -48,12 +53,32 @@ export default function Dashboard() {
     return { text, json };
   };
 
+  const fetchWithTimeout = async (url, options, timeoutMs = 8000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
   const fetchData = async ({ silent = false } = {}) => {
     if (!silent) {
       setLoading(true);
     }
     setError("");
     setNeedsLogin(false);
+    if (!silent) {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      loadingTimeoutRef.current = setTimeout(() => {
+        setLoading(false);
+        setError("Dashboard took too long to load. Try again.");
+      }, 10000);
+    }
 
     try {
       const authHeaders = getAuthHeaders();
@@ -65,15 +90,19 @@ export default function Dashboard() {
         return;
       }
 
-      const resUser = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-          ...authHeaders,
+      const resUser = await fetchWithTimeout(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/me`,
+        {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+            ...authHeaders,
+          },
         },
-      });
+        8000
+      );
 
       if (!resUser.ok) {
         setNeedsLogin(true);
@@ -86,8 +115,12 @@ export default function Dashboard() {
       const userData = await resUser.json();
       setUser(userData);
 
-      const [resWater, resWeight] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/water`, {
+      setWaterLoading(true);
+      setWeightLoading(true);
+
+      fetchWithTimeout(
+        `${process.env.NEXT_PUBLIC_API_URL}/water`,
+        {
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -95,8 +128,28 @@ export default function Dashboard() {
             Expires: "0",
             ...authHeaders,
           },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/weight`, {
+        },
+        8000
+      )
+        .then(async (resWater) => {
+          if (resWater.ok) {
+            const waterData = await resWater.json();
+            setWaterLogs(waterData);
+          } else {
+            setWaterLogs([]);
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          setWaterLogs([]);
+        })
+        .finally(() => {
+          setWaterLoading(false);
+        });
+
+      fetchWithTimeout(
+        `${process.env.NEXT_PUBLIC_API_URL}/weight`,
+        {
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -104,34 +157,50 @@ export default function Dashboard() {
             Expires: "0",
             ...authHeaders,
           },
-        }),
-      ]);
-
-      if (resWater.ok) {
-        const waterData = await resWater.json();
-        setWaterLogs(waterData);
-      } else {
-        setWaterLogs([]);
-      }
-
-      if (resWeight.ok) {
-        const weightData = await resWeight.json();
-        setWeightLogs(weightData);
-      } else {
-        setWeightLogs([]);
-      }
+        },
+        8000
+      )
+        .then(async (resWeight) => {
+          if (resWeight.ok) {
+            const weightData = await resWeight.json();
+            setWeightLogs(weightData);
+          } else {
+            setWeightLogs([]);
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          setWeightLogs([]);
+        })
+        .finally(() => {
+          setWeightLoading(false);
+        });
     } catch (err) {
       console.error(err);
-      setError("Could not load dashboard data.");
+      if (err.name === "AbortError") {
+        setError("Request timed out. Backend did not respond.");
+      } else {
+        setError("Could not load dashboard data.");
+      }
     } finally {
       if (!silent) {
         setLoading(false);
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
       }
     }
   };
 
   useEffect(() => {
     fetchData();
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -234,13 +303,28 @@ export default function Dashboard() {
     return copy;
   };
 
+  const filterLogsByDate = (logs) => {
+    if (!startDate && !endDate) return logs;
+    const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+    const end = endDate ? new Date(`${endDate}T23:59:59`) : null;
+
+    return logs.filter((log) => {
+      const created = new Date(log.created_at);
+      if (start && created < start) return false;
+      if (end && created > end) return false;
+      return true;
+    });
+  };
+
   const paginateLogs = (logs, page, pageSize) => {
     const start = (page - 1) * pageSize;
     return logs.slice(start, start + pageSize);
   };
 
-  const sortedWaterLogs = sortLogs(waterLogs, waterSort);
-  const sortedWeightLogs = sortLogs(weightLogs, weightSort);
+  const filteredWaterLogs = filterLogsByDate(waterLogs);
+  const filteredWeightLogs = filterLogsByDate(weightLogs);
+  const sortedWaterLogs = sortLogs(filteredWaterLogs, waterSort);
+  const sortedWeightLogs = sortLogs(filteredWeightLogs, weightSort);
   const pagedWaterLogs = paginateLogs(sortedWaterLogs, waterPage, pageSize);
   const pagedWeightLogs = paginateLogs(sortedWeightLogs, weightPage, pageSize);
   const waterTotalPages = Math.max(
@@ -343,7 +427,22 @@ export default function Dashboard() {
     router.push("/");
   };
 
-  if (loading) return <p className={styles.loading}>Loading...</p>;
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <main className={styles.main}>
+          <div className={styles.loadingWrap}>
+            <div className={styles.loadingCard}>
+              <span className={styles.loadingDot} />
+              <span className={styles.loadingDot} />
+              <span className={styles.loadingDot} />
+              <p className={styles.loadingText}>Loading dashboard…</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
   if (needsLogin) {
     return (
       <div className={styles.page}>
@@ -445,6 +544,32 @@ export default function Dashboard() {
             <h3>Recent Water Logs</h3>
             <div className={styles.logControls}>
               <label className={styles.control}>
+                From
+                <input
+                  className={styles.dateInput}
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => {
+                    setStartDate(event.target.value);
+                    setWaterPage(1);
+                    setWeightPage(1);
+                  }}
+                />
+              </label>
+              <label className={styles.control}>
+                To
+                <input
+                  className={styles.dateInput}
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => {
+                    setEndDate(event.target.value);
+                    setWaterPage(1);
+                    setWeightPage(1);
+                  }}
+                />
+              </label>
+              <label className={styles.control}>
                 Sort
                 <select
                   className={styles.select}
@@ -478,7 +603,14 @@ export default function Dashboard() {
                 </select>
               </label>
             </div>
-            {sortedWaterLogs.length === 0 ? (
+            {waterLoading ? (
+              <div className={styles.inlineLoading}>
+                <span className={styles.loadingDot} />
+                <span className={styles.loadingDot} />
+                <span className={styles.loadingDot} />
+                <span className={styles.inlineText}>Loading water…</span>
+              </div>
+            ) : sortedWaterLogs.length === 0 ? (
               <p className={styles.muted}>No water logs yet.</p>
             ) : (
               <ul className={styles.logList}>
@@ -498,7 +630,7 @@ export default function Dashboard() {
                 ))}
               </ul>
             )}
-            {sortedWaterLogs.length > 0 && (
+            {!waterLoading && sortedWaterLogs.length > 0 && (
               <div className={styles.pagination}>
                 <button
                   className={styles.ghostButton}
@@ -530,6 +662,32 @@ export default function Dashboard() {
           <div className={styles.logCard}>
             <h3>Recent Weight Logs</h3>
             <div className={styles.logControls}>
+              <label className={styles.control}>
+                From
+                <input
+                  className={styles.dateInput}
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => {
+                    setStartDate(event.target.value);
+                    setWaterPage(1);
+                    setWeightPage(1);
+                  }}
+                />
+              </label>
+              <label className={styles.control}>
+                To
+                <input
+                  className={styles.dateInput}
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => {
+                    setEndDate(event.target.value);
+                    setWaterPage(1);
+                    setWeightPage(1);
+                  }}
+                />
+              </label>
               <label className={styles.control}>
                 Sort
                 <select
@@ -564,7 +722,14 @@ export default function Dashboard() {
                 </select>
               </label>
             </div>
-            {sortedWeightLogs.length === 0 ? (
+            {weightLoading ? (
+              <div className={styles.inlineLoading}>
+                <span className={styles.loadingDot} />
+                <span className={styles.loadingDot} />
+                <span className={styles.loadingDot} />
+                <span className={styles.inlineText}>Loading weight…</span>
+              </div>
+            ) : sortedWeightLogs.length === 0 ? (
               <p className={styles.muted}>No weight logs yet.</p>
             ) : (
               <ul className={styles.logList}>
@@ -584,7 +749,7 @@ export default function Dashboard() {
                 ))}
               </ul>
             )}
-            {sortedWeightLogs.length > 0 && (
+            {!weightLoading && sortedWeightLogs.length > 0 && (
               <div className={styles.pagination}>
                 <button
                   className={styles.ghostButton}
