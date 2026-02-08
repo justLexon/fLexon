@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 
@@ -11,6 +11,8 @@ export default function Home() {
   const [registerPassword, setRegisterPassword] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const loginControllerRef = useRef(null);
+  const registerControllerRef = useRef(null);
   const readResponse = async (res) => {
     const contentType = res.headers.get("content-type") || "";
     const text = await res.text();
@@ -27,15 +29,8 @@ export default function Home() {
     return { text, json };
   };
 
-  const fetchWithTimeout = async (url, options, timeoutMs = 60000) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      return await fetch(url, { ...options, signal: controller.signal });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+  const fetchWithTimeout = async (url, options) => {
+    return await fetch(url, options);
   };
 
   const handleLogin = async (event) => {
@@ -44,16 +39,19 @@ export default function Home() {
     setNotice("");
 
     try {
-      const res = await fetchWithTimeout(
-        "/api/auth/login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-store",
-          body: JSON.stringify({ email: loginEmail, password: loginPassword }),
-        },
-        8000
-      );
+      if (loginControllerRef.current) {
+        loginControllerRef.current.abort();
+      }
+      const loginController = new AbortController();
+      loginControllerRef.current = loginController;
+
+      const res = await fetchWithTimeout("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+        signal: loginController.signal,
+      });
 
       const { text, json } = await readResponse(res);
       const data = json || {};
@@ -67,11 +65,8 @@ export default function Home() {
       setLoginPassword("");
       router.push("/pages/dashboard");
     } catch (err) {
+      if (err?.name === "AbortError") return;
       console.error(err);
-      if (err.name === "AbortError") {
-        setError("Request timed out. Backend did not respond.");
-        return;
-      }
       setError("Network error");
     }
   };
@@ -82,19 +77,22 @@ export default function Home() {
     setNotice("");
 
     try {
-      const res = await fetchWithTimeout(
-        "/api/auth/register",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-store",
-          body: JSON.stringify({
-            email: registerEmail,
-            password: registerPassword,
-          }),
-        },
-        8000
-      );
+      if (registerControllerRef.current) {
+        registerControllerRef.current.abort();
+      }
+      const registerController = new AbortController();
+      registerControllerRef.current = registerController;
+
+      const res = await fetchWithTimeout("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          email: registerEmail,
+          password: registerPassword,
+        }),
+        signal: registerController.signal,
+      });
 
       const { text, json } = await readResponse(res);
       const data = json || {};
@@ -108,11 +106,8 @@ export default function Home() {
       setRegisterPassword("");
       setNotice("Account created. Please log in.");
     } catch (err) {
+      if (err?.name === "AbortError") return;
       console.error(err);
-      if (err.name === "AbortError") {
-        setError("Request timed out. Backend did not respond.");
-        return;
-      }
       setError("Network error");
     }
   };

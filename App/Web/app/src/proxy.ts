@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 const PROTECTED_PATHS = ["/pages/dashboard", "/pages/stats"];
 
-export function middleware(request) {
+export function proxy(request) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("flexon_token")?.value;
 

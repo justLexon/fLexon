@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./page.module.css";
@@ -9,11 +9,25 @@ export default function GlobalStatsPage() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const requestIdRef = useRef(0);
+  const controllerRef = useRef(null);
 
   useEffect(() => {
     const fetchStats = async () => {
+      const requestId = ++requestIdRef.current;
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      controllerRef.current = controller;
+
       try {
-        const res = await fetch("/api/stats/global", { cache: "no-store" });
+        const res = await fetch("/api/stats/global", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (requestId !== requestIdRef.current) return;
 
         if (res.status === 401) {
           router.push("/");
@@ -29,14 +43,22 @@ export default function GlobalStatsPage() {
         const data = await res.json();
         setStats(data);
       } catch (err) {
+        if (err?.name === "AbortError") return;
         console.error(err);
         setError("Network error");
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     };
 
     fetchStats();
+    return () => {
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+      }
+    };
   }, [router]);
 
   if (loading) {

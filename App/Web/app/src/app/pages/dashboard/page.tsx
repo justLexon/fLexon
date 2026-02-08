@@ -14,8 +14,6 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [pageError, setPageError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [waterLoading, setWaterLoading] = useState(false);
-  const [weightLoading, setWeightLoading] = useState(false);
   const [needsLogin, setNeedsLogin] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
@@ -27,11 +25,13 @@ export default function Dashboard() {
   const [pageSize, setPageSize] = useState(5);
   const [waterPage, setWaterPage] = useState(1);
   const [weightPage, setWeightPage] = useState(1);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [waterStartDate, setWaterStartDate] = useState("");
+  const [waterEndDate, setWaterEndDate] = useState("");
+  const [weightStartDate, setWeightStartDate] = useState("");
+  const [weightEndDate, setWeightEndDate] = useState("");
   const loadingTimeoutRef = useRef(null);
   const requestIdRef = useRef(0);
-  const abortControllersRef = useRef([]);
+  const controllerRef = useRef(null);
 
   const readResponse = async (res) => {
     const contentType = res.headers.get("content-type") || "";
@@ -49,35 +49,8 @@ export default function Dashboard() {
     return { text, json };
   };
 
-  const fetchWithTimeout = async (url, options, timeoutMs = 8000) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    abortControllersRef.current.push(controller);
-
-    try {
-      return await fetch(url, { ...options, signal: controller.signal });
-    } catch (err) {
-      if (err.name === "AbortError") {
-        return null;
-      }
-      throw err;
-    } finally {
-      clearTimeout(timeoutId);
-      abortControllersRef.current = abortControllersRef.current.filter(
-        (entry) => entry !== controller
-      );
-    }
-  };
-
-  const abortInFlight = () => {
-    abortControllersRef.current.forEach((controller) => {
-      try {
-        controller.abort();
-      } catch (err) {
-        // Ignore abort errors.
-      }
-    });
-    abortControllersRef.current = [];
+  const fetchWithTimeout = async (url, options) => {
+    return await fetch(url, options);
   };
 
   const fetchData = async ({ silent = false } = {}) => {
@@ -87,7 +60,6 @@ export default function Dashboard() {
     setError("");
     setPageError("");
     setNeedsLogin(false);
-    abortInFlight();
     if (!silent) {
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
@@ -100,13 +72,26 @@ export default function Dashboard() {
 
     try {
       const requestId = ++requestIdRef.current;
-      const resUser = await fetchWithTimeout("/api/auth/me", { cache: "no-store" }, 8000);
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      controllerRef.current = controller;
 
-      if (!resUser) {
+      const resDash = await fetchWithTimeout("/api/dashboard", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      if (!resDash) {
         return;
       }
 
-      if (!resUser.ok) {
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
+      if (resDash.status === 401) {
         setNeedsLogin(true);
         if (!silent) {
           setLoading(false);
@@ -114,62 +99,22 @@ export default function Dashboard() {
         return;
       }
 
-      const userData = await resUser.json();
+      const dashData = await resDash.json();
       if (requestId === requestIdRef.current) {
-        setUser(userData);
+        setUser(dashData.user);
+        setWaterLogs(dashData.waterLogs || []);
+        setWeightLogs(dashData.weightLogs || []);
+        if (dashData.waterError) {
+          setError(dashData.waterError);
+        }
+        if (dashData.weightError) {
+          setError(dashData.weightError);
+        }
       }
-
-      setWaterLoading(true);
-      setWeightLoading(true);
-
-      fetchWithTimeout("/api/water", { cache: "no-store" }, 8000)
-        .then(async (resWater) => {
-          if (!resWater) return;
-          if (resWater.ok) {
-            const waterData = await resWater.json();
-            if (requestId === requestIdRef.current) {
-              setWaterLogs(waterData);
-            }
-          } else {
-            setError("Could not load water logs.");
-          }
-        })
-        .catch((err) => {
-          if (err.name !== "AbortError") {
-            console.error(err);
-            setError("Could not load water logs.");
-          }
-        })
-        .finally(() => {
-          if (requestId === requestIdRef.current) {
-            setWaterLoading(false);
-          }
-        });
-
-      fetchWithTimeout("/api/weight", { cache: "no-store" }, 8000)
-        .then(async (resWeight) => {
-          if (!resWeight) return;
-          if (resWeight.ok) {
-            const weightData = await resWeight.json();
-            if (requestId === requestIdRef.current) {
-              setWeightLogs(weightData);
-            }
-          } else {
-            setError("Could not load weight logs.");
-          }
-        })
-        .catch((err) => {
-          if (err.name !== "AbortError") {
-            console.error(err);
-            setError("Could not load weight logs.");
-          }
-        })
-        .finally(() => {
-          if (requestId === requestIdRef.current) {
-            setWeightLoading(false);
-          }
-        });
     } catch (err) {
+      if (err?.name === "AbortError") {
+        return;
+      }
       console.error(err);
       setPageError("Could not load dashboard data.");
     } finally {
@@ -186,7 +131,9 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
     return () => {
-      abortInFlight();
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+      }
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
         loadingTimeoutRef.current = null;
@@ -272,11 +219,15 @@ export default function Dashboard() {
   const sortLogs = (logs, sort) => {
     const copy = [...logs];
     if (sort === "oldest") {
-      copy.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      copy.sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
       return copy;
     }
     if (sort === "newest") {
-      copy.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      copy.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
       return copy;
     }
     if (sort === "highest") {
@@ -290,7 +241,7 @@ export default function Dashboard() {
     return copy;
   };
 
-  const filterLogsByDate = (logs) => {
+  const filterLogsByDate = (logs, startDate, endDate) => {
     if (!startDate && !endDate) return logs;
     const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
     const end = endDate ? new Date(`${endDate}T23:59:59`) : null;
@@ -308,8 +259,8 @@ export default function Dashboard() {
     return logs.slice(start, start + pageSize);
   };
 
-  const filteredWaterLogs = filterLogsByDate(waterLogs);
-  const filteredWeightLogs = filterLogsByDate(weightLogs);
+  const filteredWaterLogs = filterLogsByDate(waterLogs, waterStartDate, waterEndDate);
+  const filteredWeightLogs = filterLogsByDate(weightLogs, weightStartDate, weightEndDate);
   const sortedWaterLogs = sortLogs(filteredWaterLogs, waterSort);
   const sortedWeightLogs = sortLogs(filteredWeightLogs, weightSort);
   const pagedWaterLogs = paginateLogs(sortedWaterLogs, waterPage, pageSize);
@@ -329,6 +280,22 @@ export default function Dashboard() {
     setModalType(null);
     setEditAmount("");
     setIsSaving(false);
+  };
+
+  const resetWaterFilters = () => {
+    setWaterStartDate("");
+    setWaterEndDate("");
+    setWaterSort("newest");
+    setPageSize(5);
+    setWaterPage(1);
+  };
+
+  const resetWeightFilters = () => {
+    setWeightStartDate("");
+    setWeightEndDate("");
+    setWeightSort("newest");
+    setPageSize(5);
+    setWeightPage(1);
   };
 
   const handleSaveEdit = async () => {
@@ -415,16 +382,7 @@ export default function Dashboard() {
     return (
       <div className={styles.page}>
         <main className={styles.main}>
-          <div className={styles.error}>
-            <span>{pageError || "No data available yet."}</span>
-            <button
-              className={styles.errorButton}
-              type="button"
-              onClick={() => fetchData({ silent: false })}
-            >
-              Retry
-            </button>
-          </div>
+          <div className={styles.error}>{pageError && <span>{pageError}</span>}</div>
         </main>
       </div>
     );
@@ -453,13 +411,6 @@ export default function Dashboard() {
         {pageError ? (
           <div className={styles.error}>
             <span>{pageError}</span>
-            <button
-              className={styles.errorButton}
-              type="button"
-              onClick={() => fetchData({ silent: false })}
-            >
-              Retry
-            </button>
           </div>
         ) : (
           error && <p className={styles.error}>{error}</p>
@@ -529,18 +480,17 @@ export default function Dashboard() {
 
         <section className={styles.logs}>
           <div className={styles.logCard}>
-            <h3>Recent Water Logs</h3>
+            <h3>Water Logs</h3>
             <div className={styles.logControls}>
               <label className={styles.control}>
                 From
                 <input
                   className={styles.dateInput}
                   type="date"
-                  value={startDate}
+                  value={waterStartDate}
                   onChange={(event) => {
-                    setStartDate(event.target.value);
+                    setWaterStartDate(event.target.value);
                     setWaterPage(1);
-                    setWeightPage(1);
                   }}
                 />
               </label>
@@ -549,11 +499,10 @@ export default function Dashboard() {
                 <input
                   className={styles.dateInput}
                   type="date"
-                  value={endDate}
+                  value={waterEndDate}
                   onChange={(event) => {
-                    setEndDate(event.target.value);
+                    setWaterEndDate(event.target.value);
                     setWaterPage(1);
-                    setWeightPage(1);
                   }}
                 />
               </label>
@@ -576,7 +525,7 @@ export default function Dashboard() {
               <label className={styles.control}>
                 Show
                 <select
-                  className={styles.select}
+                  className={`${styles.select} ${styles.selectSmall}`}
                   value={pageSize}
                   onChange={(event) => {
                     const nextSize = Number(event.target.value);
@@ -590,15 +539,15 @@ export default function Dashboard() {
                   <option value={20}>20</option>
                 </select>
               </label>
+              <button
+                className={styles.ghostButton}
+                type="button"
+                onClick={resetWaterFilters}
+              >
+                Reset
+              </button>
             </div>
-            {waterLoading ? (
-              <div className={styles.inlineLoading}>
-                <span className={styles.loadingDot} />
-                <span className={styles.loadingDot} />
-                <span className={styles.loadingDot} />
-                <span className={styles.inlineText}>Loading water…</span>
-              </div>
-            ) : sortedWaterLogs.length === 0 ? (
+            {sortedWaterLogs.length === 0 ? (
               <p className={styles.muted}>No water logs yet.</p>
             ) : (
               <ul className={styles.logList}>
@@ -618,7 +567,7 @@ export default function Dashboard() {
                 ))}
               </ul>
             )}
-            {!waterLoading && sortedWaterLogs.length > 0 && (
+            {sortedWaterLogs.length > 0 && (
               <div className={styles.pagination}>
                 <button
                   className={styles.ghostButton}
@@ -648,17 +597,16 @@ export default function Dashboard() {
           </div>
 
           <div className={styles.logCard}>
-            <h3>Recent Weight Logs</h3>
+            <h3>Weight Logs</h3>
             <div className={styles.logControls}>
               <label className={styles.control}>
                 From
                 <input
                   className={styles.dateInput}
                   type="date"
-                  value={startDate}
+                  value={weightStartDate}
                   onChange={(event) => {
-                    setStartDate(event.target.value);
-                    setWaterPage(1);
+                    setWeightStartDate(event.target.value);
                     setWeightPage(1);
                   }}
                 />
@@ -668,10 +616,9 @@ export default function Dashboard() {
                 <input
                   className={styles.dateInput}
                   type="date"
-                  value={endDate}
+                  value={weightEndDate}
                   onChange={(event) => {
-                    setEndDate(event.target.value);
-                    setWaterPage(1);
+                    setWeightEndDate(event.target.value);
                     setWeightPage(1);
                   }}
                 />
@@ -695,7 +642,7 @@ export default function Dashboard() {
               <label className={styles.control}>
                 Show
                 <select
-                  className={styles.select}
+                  className={`${styles.select} ${styles.selectSmall}`}
                   value={pageSize}
                   onChange={(event) => {
                     const nextSize = Number(event.target.value);
@@ -709,15 +656,15 @@ export default function Dashboard() {
                   <option value={20}>20</option>
                 </select>
               </label>
+              <button
+                className={styles.ghostButton}
+                type="button"
+                onClick={resetWeightFilters}
+              >
+                Reset
+              </button>
             </div>
-            {weightLoading ? (
-              <div className={styles.inlineLoading}>
-                <span className={styles.loadingDot} />
-                <span className={styles.loadingDot} />
-                <span className={styles.loadingDot} />
-                <span className={styles.inlineText}>Loading weight…</span>
-              </div>
-            ) : sortedWeightLogs.length === 0 ? (
+            {sortedWeightLogs.length === 0 ? (
               <p className={styles.muted}>No weight logs yet.</p>
             ) : (
               <ul className={styles.logList}>
@@ -737,7 +684,7 @@ export default function Dashboard() {
                 ))}
               </ul>
             )}
-            {!weightLoading && sortedWeightLogs.length > 0 && (
+            {sortedWeightLogs.length > 0 && (
               <div className={styles.pagination}>
                 <button
                   className={styles.ghostButton}
@@ -823,3 +770,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
