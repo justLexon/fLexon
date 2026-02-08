@@ -14,6 +14,11 @@ app.use(express.json());
 app.use(corsConfig);
 app.use(cookieParser());
 
+app.get("/ping", (req, res) => {
+  console.log("Ping hit");
+  res.json({ ok: true });
+});
+
 app.use("/auth", authRoutes);
 app.use("/water", waterRoutes);
 app.use("/weight", weightRoutes);
