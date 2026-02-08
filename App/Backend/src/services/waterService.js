@@ -28,3 +28,14 @@ exports.getWaterWithUser = async (userId) => {
 
     return result;
 };
+
+exports.updateWater = async (userId, id, amount) => {
+    const result = await sql`
+        UPDATE water_logs
+        SET amount = ${amount}
+        WHERE id = ${id} AND user_id = ${userId}
+        RETURNING *
+    `;
+
+    return result[0];
+};
