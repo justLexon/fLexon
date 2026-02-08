@@ -11,18 +11,14 @@ export default function GlobalStatsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("flexon_token");
-    if (!token) {
-      router.push("/");
-      return;
-    }
-
     const fetchStats = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/stats/global`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
+        const res = await fetch("/api/stats/global", { cache: "no-store" });
+
+        if (res.status === 401) {
+          router.push("/");
+          return;
+        }
 
         if (!res.ok) {
           setError("Could not load global stats.");

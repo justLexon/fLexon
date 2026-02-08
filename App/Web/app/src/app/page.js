@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 
@@ -38,28 +38,6 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem("flexon_token");
-    if (!token) return;
-
-    const checkSession = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-
-        if (res.ok) {
-          router.push("/pages/dashboard");
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    checkSession();
-  }, [router]);
-
   const handleLogin = async (event) => {
     event.preventDefault();
     setError("");
@@ -67,7 +45,7 @@ export default function Home() {
 
     try {
       const res = await fetchWithTimeout(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+        "/api/auth/login",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -83,10 +61,6 @@ export default function Home() {
       if (!res.ok) {
         setError(data.error || text || "Login failed");
         return;
-      }
-
-      if (data?.token) {
-        localStorage.setItem("flexon_token", data.token);
       }
 
       setLoginEmail("");
@@ -109,7 +83,7 @@ export default function Home() {
 
     try {
       const res = await fetchWithTimeout(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/register`,
+        "/api/auth/register",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

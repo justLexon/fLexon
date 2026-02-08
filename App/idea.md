@@ -1,0 +1,6 @@
+- add animations to login background and dash and globals bg
+- make shiny effect on cards
+- energy/lightning symbols/animations
+- add global stats to login page and real time charts?
+- very grand nice charts
+- analytics for users

@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [newWaterAmount, setNewWaterAmount] = useState("");
   const [newWeightAmount, setNewWeightAmount] = useState("");
   const [error, setError] = useState("");
+  const [pageError, setPageError] = useState("");
   const [loading, setLoading] = useState(true);
   const [waterLoading, setWaterLoading] = useState(false);
   const [weightLoading, setWeightLoading] = useState(false);
@@ -29,13 +30,8 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const loadingTimeoutRef = useRef(null);
-
-  const getAuthHeaders = () => {
-    if (typeof window === "undefined") return {};
-    const token = localStorage.getItem("flexon_token");
-    if (!token) return {};
-    return { Authorization: `Bearer ${token}` };
-  };
+  const requestIdRef = useRef(0);
+  const abortControllersRef = useRef([]);
 
   const readResponse = async (res) => {
     const contentType = res.headers.get("content-type") || "";
@@ -56,12 +52,32 @@ export default function Dashboard() {
   const fetchWithTimeout = async (url, options, timeoutMs = 8000) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    abortControllersRef.current.push(controller);
 
     try {
       return await fetch(url, { ...options, signal: controller.signal });
+    } catch (err) {
+      if (err.name === "AbortError") {
+        return null;
+      }
+      throw err;
     } finally {
       clearTimeout(timeoutId);
+      abortControllersRef.current = abortControllersRef.current.filter(
+        (entry) => entry !== controller
+      );
     }
+  };
+
+  const abortInFlight = () => {
+    abortControllersRef.current.forEach((controller) => {
+      try {
+        controller.abort();
+      } catch (err) {
+        // Ignore abort errors.
+      }
+    });
+    abortControllersRef.current = [];
   };
 
   const fetchData = async ({ silent = false } = {}) => {
@@ -69,40 +85,26 @@ export default function Dashboard() {
       setLoading(true);
     }
     setError("");
+    setPageError("");
     setNeedsLogin(false);
+    abortInFlight();
     if (!silent) {
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
       }
       loadingTimeoutRef.current = setTimeout(() => {
         setLoading(false);
-        setError("Dashboard took too long to load. Try again.");
-      }, 10000);
+        setPageError("Dashboard took too long to load. Try again.");
+      }, 12000);
     }
 
     try {
-      const authHeaders = getAuthHeaders();
-      if (!authHeaders.Authorization) {
-        setNeedsLogin(true);
-        if (!silent) {
-          setLoading(false);
-        }
+      const requestId = ++requestIdRef.current;
+      const resUser = await fetchWithTimeout("/api/auth/me", { cache: "no-store" }, 8000);
+
+      if (!resUser) {
         return;
       }
-
-      const resUser = await fetchWithTimeout(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/me`,
-        {
-          cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-            ...authHeaders,
-          },
-        },
-        8000
-      );
 
       if (!resUser.ok) {
         setNeedsLogin(true);
@@ -113,75 +115,63 @@ export default function Dashboard() {
       }
 
       const userData = await resUser.json();
-      setUser(userData);
+      if (requestId === requestIdRef.current) {
+        setUser(userData);
+      }
 
       setWaterLoading(true);
       setWeightLoading(true);
 
-      fetchWithTimeout(
-        `${process.env.NEXT_PUBLIC_API_URL}/water`,
-        {
-          cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-            ...authHeaders,
-          },
-        },
-        8000
-      )
+      fetchWithTimeout("/api/water", { cache: "no-store" }, 8000)
         .then(async (resWater) => {
+          if (!resWater) return;
           if (resWater.ok) {
             const waterData = await resWater.json();
-            setWaterLogs(waterData);
+            if (requestId === requestIdRef.current) {
+              setWaterLogs(waterData);
+            }
           } else {
-            setWaterLogs([]);
+            setError("Could not load water logs.");
           }
         })
         .catch((err) => {
-          console.error(err);
-          setWaterLogs([]);
+          if (err.name !== "AbortError") {
+            console.error(err);
+            setError("Could not load water logs.");
+          }
         })
         .finally(() => {
-          setWaterLoading(false);
+          if (requestId === requestIdRef.current) {
+            setWaterLoading(false);
+          }
         });
 
-      fetchWithTimeout(
-        `${process.env.NEXT_PUBLIC_API_URL}/weight`,
-        {
-          cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-            ...authHeaders,
-          },
-        },
-        8000
-      )
+      fetchWithTimeout("/api/weight", { cache: "no-store" }, 8000)
         .then(async (resWeight) => {
+          if (!resWeight) return;
           if (resWeight.ok) {
             const weightData = await resWeight.json();
-            setWeightLogs(weightData);
+            if (requestId === requestIdRef.current) {
+              setWeightLogs(weightData);
+            }
           } else {
-            setWeightLogs([]);
+            setError("Could not load weight logs.");
           }
         })
         .catch((err) => {
-          console.error(err);
-          setWeightLogs([]);
+          if (err.name !== "AbortError") {
+            console.error(err);
+            setError("Could not load weight logs.");
+          }
         })
         .finally(() => {
-          setWeightLoading(false);
+          if (requestId === requestIdRef.current) {
+            setWeightLoading(false);
+          }
         });
     } catch (err) {
       console.error(err);
-      if (err.name === "AbortError") {
-        setError("Request timed out. Backend did not respond.");
-      } else {
-        setError("Could not load dashboard data.");
-      }
+      setPageError("Could not load dashboard data.");
     } finally {
       if (!silent) {
         setLoading(false);
@@ -196,6 +186,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
     return () => {
+      abortInFlight();
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
         loadingTimeoutRef.current = null;
@@ -215,12 +206,10 @@ export default function Dashboard() {
     if (!newWaterAmount) return setError("Enter a water amount");
 
     try {
-      const authHeaders = getAuthHeaders();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/water`, {
+      const res = await fetch("/api/water", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeaders,
         },
         cache: "no-store",
         body: JSON.stringify({ amount: Number(newWaterAmount) }),
@@ -248,12 +237,10 @@ export default function Dashboard() {
     if (!newWeightAmount) return setError("Enter a weight amount");
 
     try {
-      const authHeaders = getAuthHeaders();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/weight`, {
+      const res = await fetch("/api/weight", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeaders,
         },
         cache: "no-store",
         body: JSON.stringify({ amount: Number(newWeightAmount) }),
@@ -348,16 +335,10 @@ export default function Dashboard() {
     if (!selectedLog || !modalType) return;
     if (!editAmount) return setError("Enter a valid amount");
 
-    const authHeaders = getAuthHeaders();
-    if (!authHeaders.Authorization) {
-      setNeedsLogin(true);
-      return;
-    }
-
     const endpoint =
       modalType === "water"
-        ? `${process.env.NEXT_PUBLIC_API_URL}/water/${selectedLog.id}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/weight/${selectedLog.id}`;
+        ? `/api/water/${selectedLog.id}`
+        : `/api/weight/${selectedLog.id}`;
 
     try {
       setIsSaving(true);
@@ -365,7 +346,6 @@ export default function Dashboard() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...authHeaders,
         },
         cache: "no-store",
         body: JSON.stringify({ amount: Number(editAmount) }),
@@ -408,41 +388,17 @@ export default function Dashboard() {
     setError("");
 
     try {
-      const authHeaders = getAuthHeaders();
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+      await fetch("/api/auth/logout", {
         method: "POST",
-        headers: {
-          ...authHeaders,
-        },
         cache: "no-store",
       });
     } catch (err) {
       console.error("Logout error:", err);
     }
 
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("flexon_token");
-    }
-
     router.push("/");
   };
 
-  if (loading) {
-    return (
-      <div className={styles.page}>
-        <main className={styles.main}>
-          <div className={styles.loadingWrap}>
-            <div className={styles.loadingCard}>
-              <span className={styles.loadingDot} />
-              <span className={styles.loadingDot} />
-              <span className={styles.loadingDot} />
-              <p className={styles.loadingText}>Loading dashboard…</p>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
   if (needsLogin) {
     return (
       <div className={styles.page}>
@@ -455,7 +411,26 @@ export default function Dashboard() {
       </div>
     );
   }
-  if (!user) return null;
+  if (!user && !loading) {
+    return (
+      <div className={styles.page}>
+        <main className={styles.main}>
+          <div className={styles.error}>
+            <span>{pageError || "No data available yet."}</span>
+            <button
+              className={styles.errorButton}
+              type="button"
+              onClick={() => fetchData({ silent: false })}
+            >
+              Retry
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  const userEmail = user?.email ?? "Loading…";
 
   return (
     <div className={styles.page}>
@@ -463,7 +438,7 @@ export default function Dashboard() {
         <header className={styles.header}>
           <div>
             <p className={styles.kicker}>fLexon Dashboard</p>
-            <h1>Welcome back, {user.email}</h1>
+            <h1>Welcome back, {userEmail}</h1>
           </div>
           <div className={styles.headerActions}>
             <Link className={styles.ghostButton} href="/pages/stats">
@@ -475,7 +450,20 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {error && <p className={styles.error}>{error}</p>}
+        {pageError ? (
+          <div className={styles.error}>
+            <span>{pageError}</span>
+            <button
+              className={styles.errorButton}
+              type="button"
+              onClick={() => fetchData({ silent: false })}
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          error && <p className={styles.error}>{error}</p>
+        )}
 
         <section className={styles.cards}>
           <div className={styles.card}>

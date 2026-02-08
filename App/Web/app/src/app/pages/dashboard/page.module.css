@@ -110,6 +110,20 @@
   color: #9b2c2c;
   font-weight: 600;
   box-shadow: 0 12px 24px rgba(155, 44, 44, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.errorButton {
+  border: none;
+  background: rgba(155, 44, 44, 0.12);
+  color: #9b2c2c;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 11px;
 }
 
 .cards {
