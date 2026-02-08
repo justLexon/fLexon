@@ -8,6 +8,7 @@ const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes/auth");
 const waterRoutes = require("./routes/waterRoutes/water");
 const weightRoutes = require("./routes/weightRoutes/weight");
+const statsRoutes = require("./routes/statsRoutes/stats");
 
 
 app.use(express.json());
@@ -22,5 +23,6 @@ app.get("/ping", (req, res) => {
 app.use("/auth", authRoutes);
 app.use("/water", waterRoutes);
 app.use("/weight", weightRoutes);
+app.use("/stats", statsRoutes);
 
 module.exports = app;

@@ -33,7 +33,7 @@
 .hero {
   background: linear-gradient(135deg, var(--forest-900), var(--forest-700));
   color: var(--forest-100);
-  padding: 36px 40px;
+  padding: 14px 20px;
   border-radius: 28px;
   box-shadow: 0 20px 40px var(--shadow);
   position: relative;
@@ -65,15 +65,15 @@
 }
 
 .hero h1 {
-  font-size: clamp(36px, 4vw, 52px);
-  margin: 0 0 10px;
-  letter-spacing: -1px;
+  font-size: clamp(24px, 2.8vw, 34px);
+  margin: 0 0 4px;
+  letter-spacing: -0.4px;
 }
 
 .subtitle {
   max-width: 520px;
-  font-size: 18px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.45;
   margin: 0;
   color: var(--forest-100);
 }

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 
@@ -18,6 +19,11 @@ export default function Dashboard() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [editAmount, setEditAmount] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [waterSort, setWaterSort] = useState("newest");
+  const [weightSort, setWeightSort] = useState("newest");
+  const [pageSize, setPageSize] = useState(5);
+  const [waterPage, setWaterPage] = useState(1);
+  const [weightPage, setWeightPage] = useState(1);
 
   const getAuthHeaders = () => {
     if (typeof window === "undefined") return {};
@@ -103,20 +109,14 @@ export default function Dashboard() {
 
       if (resWater.ok) {
         const waterData = await resWater.json();
-        const lastLogs = waterData
-          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-          .slice(-10);
-        setWaterLogs(lastLogs);
+        setWaterLogs(waterData);
       } else {
         setWaterLogs([]);
       }
 
       if (resWeight.ok) {
         const weightData = await resWeight.json();
-        const lastLogs = weightData
-          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-          .slice(-10);
-        setWeightLogs(lastLogs);
+        setWeightLogs(weightData);
       } else {
         setWeightLogs([]);
       }
@@ -212,6 +212,45 @@ export default function Dashboard() {
     setEditAmount(String(log.amount ?? ""));
     setIsModalOpen(true);
   };
+
+  const sortLogs = (logs, sort) => {
+    const copy = [...logs];
+    if (sort === "oldest") {
+      copy.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      return copy;
+    }
+    if (sort === "newest") {
+      copy.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return copy;
+    }
+    if (sort === "highest") {
+      copy.sort((a, b) => Number(b.amount) - Number(a.amount));
+      return copy;
+    }
+    if (sort === "lowest") {
+      copy.sort((a, b) => Number(a.amount) - Number(b.amount));
+      return copy;
+    }
+    return copy;
+  };
+
+  const paginateLogs = (logs, page, pageSize) => {
+    const start = (page - 1) * pageSize;
+    return logs.slice(start, start + pageSize);
+  };
+
+  const sortedWaterLogs = sortLogs(waterLogs, waterSort);
+  const sortedWeightLogs = sortLogs(weightLogs, weightSort);
+  const pagedWaterLogs = paginateLogs(sortedWaterLogs, waterPage, pageSize);
+  const pagedWeightLogs = paginateLogs(sortedWeightLogs, weightPage, pageSize);
+  const waterTotalPages = Math.max(
+    1,
+    Math.ceil(sortedWaterLogs.length / pageSize)
+  );
+  const weightTotalPages = Math.max(
+    1,
+    Math.ceil(sortedWeightLogs.length / pageSize)
+  );
 
   const closeEditModal = () => {
     setIsModalOpen(false);
@@ -324,12 +363,17 @@ export default function Dashboard() {
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
-            <p className={styles.kicker}>Flexon Dashboard</p>
+            <p className={styles.kicker}>fLexon Dashboard</p>
             <h1>Welcome back, {user.email}</h1>
           </div>
-          <button className={styles.logoutButton} onClick={handleLogout}>
-            Logout
-          </button>
+          <div className={styles.headerActions}>
+            <Link className={styles.ghostButton} href="/pages/stats">
+              Global Stats
+            </Link>
+            <button className={styles.logoutButton} onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
         </header>
 
         {error && <p className={styles.error}>{error}</p>}
@@ -338,7 +382,6 @@ export default function Dashboard() {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <h2>Water</h2>
-              <span className={styles.badge}>Today</span>
             </div>
             <p className={styles.cardCopy}>
               Add new water logs or review recent entries.
@@ -369,7 +412,6 @@ export default function Dashboard() {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <h2>Weight</h2>
-              <span className={styles.badge}>Check-in</span>
             </div>
             <p className={styles.cardCopy}>
               Log weight updates and keep progress moving.
@@ -401,11 +443,46 @@ export default function Dashboard() {
         <section className={styles.logs}>
           <div className={styles.logCard}>
             <h3>Recent Water Logs</h3>
-            {waterLogs.length === 0 ? (
+            <div className={styles.logControls}>
+              <label className={styles.control}>
+                Sort
+                <select
+                  className={styles.select}
+                  value={waterSort}
+                  onChange={(event) => {
+                    setWaterSort(event.target.value);
+                    setWaterPage(1);
+                  }}
+                >
+                  <option value="oldest">Oldest → Newest</option>
+                  <option value="newest">Newest → Oldest</option>
+                  <option value="highest">Highest → Lowest</option>
+                  <option value="lowest">Lowest → Highest</option>
+                </select>
+              </label>
+              <label className={styles.control}>
+                Show
+                <select
+                  className={styles.select}
+                  value={pageSize}
+                  onChange={(event) => {
+                    const nextSize = Number(event.target.value);
+                    setPageSize(nextSize);
+                    setWaterPage(1);
+                    setWeightPage(1);
+                  }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </label>
+            </div>
+            {sortedWaterLogs.length === 0 ? (
               <p className={styles.muted}>No water logs yet.</p>
             ) : (
               <ul className={styles.logList}>
-                {waterLogs.map((log) => (
+                {pagedWaterLogs.map((log) => (
                   <li key={log.id || log.created_at} className={styles.logItem}>
                     <button
                       type="button"
@@ -421,15 +498,77 @@ export default function Dashboard() {
                 ))}
               </ul>
             )}
+            {sortedWaterLogs.length > 0 && (
+              <div className={styles.pagination}>
+                <button
+                  className={styles.ghostButton}
+                  type="button"
+                  onClick={() =>
+                    setWaterPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={waterPage <= 1}
+                >
+                  Prev
+                </button>
+                <span className={styles.pageInfo}>
+                  Page {waterPage} of {waterTotalPages}
+                </span>
+                <button
+                  className={styles.ghostButton}
+                  type="button"
+                  onClick={() =>
+                    setWaterPage((prev) => Math.min(waterTotalPages, prev + 1))
+                  }
+                  disabled={waterPage >= waterTotalPages}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
 
           <div className={styles.logCard}>
             <h3>Recent Weight Logs</h3>
-            {weightLogs.length === 0 ? (
+            <div className={styles.logControls}>
+              <label className={styles.control}>
+                Sort
+                <select
+                  className={styles.select}
+                  value={weightSort}
+                  onChange={(event) => {
+                    setWeightSort(event.target.value);
+                    setWeightPage(1);
+                  }}
+                >
+                  <option value="oldest">Oldest → Newest</option>
+                  <option value="newest">Newest → Oldest</option>
+                  <option value="highest">Highest → Lowest</option>
+                  <option value="lowest">Lowest → Highest</option>
+                </select>
+              </label>
+              <label className={styles.control}>
+                Show
+                <select
+                  className={styles.select}
+                  value={pageSize}
+                  onChange={(event) => {
+                    const nextSize = Number(event.target.value);
+                    setPageSize(nextSize);
+                    setWeightPage(1);
+                    setWaterPage(1);
+                  }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </label>
+            </div>
+            {sortedWeightLogs.length === 0 ? (
               <p className={styles.muted}>No weight logs yet.</p>
             ) : (
               <ul className={styles.logList}>
-                {weightLogs.map((log) => (
+                {pagedWeightLogs.map((log) => (
                   <li key={log.id || log.created_at} className={styles.logItem}>
                     <button
                       type="button"
@@ -444,6 +583,33 @@ export default function Dashboard() {
                   </li>
                 ))}
               </ul>
+            )}
+            {sortedWeightLogs.length > 0 && (
+              <div className={styles.pagination}>
+                <button
+                  className={styles.ghostButton}
+                  type="button"
+                  onClick={() =>
+                    setWeightPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={weightPage <= 1}
+                >
+                  Prev
+                </button>
+                <span className={styles.pageInfo}>
+                  Page {weightPage} of {weightTotalPages}
+                </span>
+                <button
+                  className={styles.ghostButton}
+                  type="button"
+                  onClick={() =>
+                    setWeightPage((prev) => Math.min(weightTotalPages, prev + 1))
+                  }
+                  disabled={weightPage >= weightTotalPages}
+                >
+                  Next
+                </button>
+              </div>
             )}
           </div>
         </section>

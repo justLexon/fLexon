@@ -148,7 +148,7 @@ export default function Home() {
       <main className={styles.main}>
         <header className={styles.hero}>
           <p className={styles.kicker}>Daily wellness, simplified</p>
-          <h1>Flexon</h1>
+          <h1>fLexon</h1>
           <p className={styles.subtitle}>
             Track water intake and weight in one clean, focused dashboard.
           </p>

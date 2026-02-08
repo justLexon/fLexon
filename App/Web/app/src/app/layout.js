@@ -12,8 +12,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Flexon",
-  description: "Flexon water and weight tracking",
+  title: "fLexon",
+  description: "fLexon water and weight tracking",
 };
 
 export default function RootLayout({ children }) {
