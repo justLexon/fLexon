@@ -62,6 +62,55 @@ export default function GlobalStatsPage() {
 
   if (!stats) return null;
 
+  const buildSeries = (series) => {
+    if (!Array.isArray(series)) return [];
+    return series.map((point) => ({
+      date: point.date,
+      value: typeof point.avg === "number" ? point.avg : 0,
+      hasValue: typeof point.avg === "number",
+    }));
+  };
+
+  const waterSeries = buildSeries(stats.water_daily_series);
+  const weightSeries = buildSeries(stats.weight_daily_series);
+
+  const renderSparkline = (series, color) => {
+    if (!series.length || series.every((p) => !p.hasValue)) {
+      return <p className={styles.muted}>No data yet</p>;
+    }
+
+    const values = series.map((p) => p.value);
+    const max = Math.max(...values, 1);
+    const min = Math.min(...values, 0);
+    const range = Math.max(1, max - min);
+    const width = 240;
+    const height = 64;
+    const step = width / Math.max(1, series.length - 1);
+
+    const points = series
+      .map((p, index) => {
+        const x = index * step;
+        const y = height - ((p.value - min) / range) * height;
+        return `${x},${y}`;
+      })
+      .join(" ");
+
+    return (
+      <svg
+        className={styles.sparkline}
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+      >
+        <polyline
+          points={points}
+          fill="none"
+          stroke={color}
+          strokeWidth="2"
+        />
+      </svg>
+    );
+  };
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -75,30 +124,40 @@ export default function GlobalStatsPage() {
           </Link>
         </header>
 
-        <section className={styles.grid}>
-          <div className={styles.card}>
-            <h2>Water Daily Avg</h2>
-            <p className={styles.value}>
-              {stats.water_daily_avg ?? "—"}
-            </p>
+        <section className={styles.rows}>
+          <div className={styles.rowCard}>
+            <div>
+              <h2>Water Daily Avg</h2>
+              <p className={styles.value}>{stats.water_daily_avg ?? "—"}</p>
+              <p className={styles.caption}>Last 30 days (UTC)</p>
+            </div>
+            <div className={styles.chartPanel}>
+              {renderSparkline(waterSeries, "#1f6b3f")}
+            </div>
           </div>
-          <div className={styles.card}>
-            <h2>Weight Daily Avg</h2>
-            <p className={styles.value}>
-              {stats.weight_daily_avg ?? "—"}
-            </p>
+          <div className={styles.rowCard}>
+            <div>
+              <h2>Weight Daily Avg</h2>
+              <p className={styles.value}>{stats.weight_daily_avg ?? "—"}</p>
+              <p className={styles.caption}>Last 30 days (UTC)</p>
+            </div>
+            <div className={styles.chartPanel}>
+              {renderSparkline(weightSeries, "#2f8751")}
+            </div>
           </div>
-          <div className={styles.card}>
-            <h2>Water All-Time Avg</h2>
-            <p className={styles.value}>
-              {stats.water_all_time_avg ?? "—"}
-            </p>
+          <div className={styles.rowCard}>
+            <div>
+              <h2>Water All-Time Avg</h2>
+              <p className={styles.value}>{stats.water_all_time_avg ?? "—"}</p>
+            </div>
+            <div className={styles.chartPlaceholder}>All-time</div>
           </div>
-          <div className={styles.card}>
-            <h2>Weight All-Time Avg</h2>
-            <p className={styles.value}>
-              {stats.weight_all_time_avg ?? "—"}
-            </p>
+          <div className={styles.rowCard}>
+            <div>
+              <h2>Weight All-Time Avg</h2>
+              <p className={styles.value}>{stats.weight_all_time_avg ?? "—"}</p>
+            </div>
+            <div className={styles.chartPlaceholder}>All-time</div>
           </div>
         </section>
       </main>
