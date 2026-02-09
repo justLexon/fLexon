@@ -10,13 +10,11 @@
   --shadow: rgba(7, 28, 18, 0.12);
 
   min-height: 100vh;
-  background: radial-gradient(
-      circle at top right,
-      rgba(47, 135, 81, 0.18),
-      transparent 45%
-    ),
-    linear-gradient(160deg, var(--cream), #e3efe6 55%, #d2e6d6);
-  color: var(--forest-900);
+  background:
+    radial-gradient(1200px 520px at 10% -10%, rgba(30, 120, 80, 0.45), transparent 60%),
+    radial-gradient(900px 460px at 90% 0%, rgba(70, 170, 120, 0.35), transparent 65%),
+    linear-gradient(160deg, #0d2b1d 0%, #123827 55%, #164230 100%);
+  color: #e7fff3;
   font-family: var(--font-geist-sans);
   display: flex;
   justify-content: center;
@@ -36,10 +34,11 @@
   justify-content: space-between;
   gap: 16px;
   align-items: center;
-  background: white;
+  background: linear-gradient(120deg, rgba(12, 44, 29, 0.9), rgba(10, 34, 23, 0.8));
   border-radius: 22px;
   padding: 16px 20px;
-  box-shadow: 0 16px 32px var(--shadow);
+  box-shadow: 0 24px 46px rgba(6, 18, 12, 0.45);
+  border: 1px solid rgba(88, 172, 126, 0.25);
 }
 
 .headerActions {
@@ -51,6 +50,7 @@
 .header h1 {
   margin: 4px 0 0;
   font-size: clamp(20px, 2.6vw, 28px);
+  color: #eafff5;
 }
 
 .kicker {
@@ -58,7 +58,7 @@
   font-size: 11px;
   text-transform: none;
   letter-spacing: 0.6px;
-  color: var(--forest-600);
+  color: rgba(186, 240, 212, 0.85);
   font-weight: 700;
 }
 
@@ -74,20 +74,22 @@
 }
 
 .logoutButton {
-  background: var(--forest-900);
-  color: var(--forest-100);
+  background: rgba(10, 34, 23, 0.85);
+  color: #dff8ea;
+  border: 1px solid rgba(118, 214, 164, 0.4);
+  box-shadow: 0 10px 18px rgba(6, 18, 12, 0.35);
 }
 
 .primaryButton {
-  background: var(--forest-700);
-  color: var(--forest-100);
-  box-shadow: 0 10px 20px rgba(15, 59, 38, 0.2);
+  background: #5fd39c;
+  color: #0b2e1e;
+  box-shadow: 0 10px 20px rgba(6, 18, 12, 0.35);
 }
 
 .ghostButton {
   background: transparent;
-  color: var(--forest-700);
-  border: 1px solid rgba(15, 59, 38, 0.4);
+  color: #d7f6e7;
+  border: 1px solid rgba(118, 214, 164, 0.4);
 }
 
 .logoutButton:hover,
@@ -104,12 +106,12 @@
   max-width: 320px;
   margin: 0;
   padding: 12px 16px;
-  background: #fff;
+  background: rgba(16, 44, 30, 0.95);
   border-radius: 12px;
-  border: 1px solid rgba(155, 44, 44, 0.2);
-  color: #9b2c2c;
+  border: 1px solid rgba(255, 145, 145, 0.25);
+  color: #ffd9d9;
   font-weight: 600;
-  box-shadow: 0 12px 24px rgba(155, 44, 44, 0.12);
+  box-shadow: 0 12px 24px rgba(6, 18, 12, 0.35);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -117,8 +119,8 @@
 
 .errorButton {
   border: none;
-  background: rgba(155, 44, 44, 0.12);
-  color: #9b2c2c;
+  background: rgba(255, 145, 145, 0.15);
+  color: #ffd9d9;
   padding: 6px 10px;
   border-radius: 999px;
   cursor: pointer;
@@ -133,10 +135,10 @@
 }
 
 .card {
-  background: var(--forest-100);
+  background: rgba(10, 34, 23, 0.75);
   border-radius: 20px;
   padding: 16px;
-  border: 1px solid rgba(15, 59, 38, 0.12);
+  border: 1px solid rgba(88, 172, 126, 0.25);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -151,11 +153,12 @@
 .cardHeader h2 {
   margin: 0;
   font-size: 20px;
+  color: #eafff5;
 }
 
 .badge {
-  background: var(--forest-700);
-  color: var(--forest-100);
+  background: #5fd39c;
+  color: #0b2e1e;
   font-size: 12px;
   padding: 4px 10px;
   border-radius: 999px;
@@ -163,7 +166,7 @@
 
 .cardCopy {
   margin: 0;
-  color: var(--forest-700);
+  color: rgba(214, 248, 232, 0.75);
 }
 
 .actionRow {
@@ -177,16 +180,20 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(15, 59, 38, 0.2);
-  background: white;
-  color: var(--forest-900);
+  border: 1px solid rgba(118, 214, 164, 0.3);
+  background: rgba(8, 24, 17, 0.8);
+  color: #eafff5;
   font-size: 14px;
   appearance: textfield;
 }
 
 .input:focus,
 .input:hover {
-  background: white;
+  background: rgba(8, 24, 17, 0.9);
+}
+
+.input::placeholder {
+  color: rgba(210, 255, 235, 0.55);
 }
 
 .input::-webkit-outer-spin-button,
@@ -202,10 +209,11 @@
 }
 
 .logCard {
-  background: white;
+  background: rgba(10, 34, 23, 0.85);
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 16px 28px var(--shadow);
+  box-shadow: 0 18px 32px rgba(6, 18, 12, 0.4);
+  border: 1px solid rgba(88, 172, 126, 0.25);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -213,6 +221,7 @@
 
 .logCard h3 {
   margin: 0;
+  color: #eafff5;
 }
 
 .logList {
@@ -239,15 +248,15 @@
   gap: 6px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--forest-700);
+  color: rgba(214, 248, 232, 0.8);
 }
 
 .select {
   border-radius: 10px;
-  border: 1px solid rgba(15, 59, 38, 0.2);
+  border: 1px solid rgba(118, 214, 164, 0.3);
   padding: 4px 8px;
-  background: var(--forest-100);
-  color: var(--forest-900);
+  background: rgba(8, 24, 17, 0.85);
+  color: #eafff5;
   font-size: 12px;
   min-width: 120px;
 }
@@ -258,18 +267,23 @@
 
 .dateInput {
   border-radius: 10px;
-  border: 1px solid rgba(15, 59, 38, 0.2);
+  border: 1px solid rgba(118, 214, 164, 0.3);
   padding: 4px 8px;
-  background: var(--forest-100);
-  color: var(--forest-900);
+  background: rgba(8, 24, 17, 0.85);
+  color: #eafff5;
   font-size: 12px;
   min-width: 120px;
+}
+
+.dateInput::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.9;
 }
 
 .logControls .ghostButton {
   padding: 6px 10px;
   font-size: 12px;
-  min-width: 75px;
+  min-width: 70px;
   text-align: center;
 }
 
@@ -279,8 +293,8 @@
   justify-content: space-between;
   padding: 0;
   border-radius: 12px;
-  background: var(--forest-100);
-  border: 1px solid rgba(15, 59, 38, 0.12);
+  background: rgba(12, 44, 29, 0.75);
+  border: 1px solid rgba(88, 172, 126, 0.25);
   font-size: 14px;
 }
 
@@ -299,29 +313,29 @@
 }
 
 .logButton:hover .logAmount {
-  color: var(--forest-700);
+  color: #5fd39c;
 }
 
 .logAmount {
   font-weight: 600;
-  color: var(--forest-800);
+  color: #eafff5;
 }
 
 .logDate {
-  color: var(--forest-600);
+  color: rgba(214, 248, 232, 0.7);
   font-size: 12px;
 }
 
 .muted {
   margin: 0;
-  color: var(--forest-600);
+  color: rgba(214, 248, 232, 0.7);
 }
 
 .inlineLoading {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--forest-600);
+  color: rgba(214, 248, 232, 0.7);
   font-size: 12px;
 }
 
@@ -338,10 +352,10 @@
 }
 
 .loadingCard {
-  background: white;
+  background: rgba(12, 44, 29, 0.9);
   border-radius: 16px;
   padding: 16px 18px;
-  box-shadow: 0 12px 24px var(--shadow);
+  box-shadow: 0 12px 24px rgba(6, 18, 12, 0.35);
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -351,7 +365,7 @@
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: var(--forest-700);
+  background: #5fd39c;
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -366,7 +380,7 @@
 .loadingText {
   margin: 0 0 0 6px;
   font-size: 12px;
-  color: var(--forest-700);
+  color: rgba(214, 248, 232, 0.8);
 }
 
 .pagination {
@@ -378,13 +392,13 @@
 
 .pageInfo {
   font-size: 12px;
-  color: var(--forest-700);
+  color: rgba(214, 248, 232, 0.8);
 }
 
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(11, 46, 30, 0.35);
+  background: rgba(6, 18, 12, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -393,10 +407,10 @@
 
 .modal {
   width: min(420px, 92vw);
-  background: white;
+  background: rgba(12, 44, 29, 0.95);
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 20px 40px rgba(7, 28, 18, 0.2);
+  box-shadow: 0 20px 40px rgba(6, 18, 12, 0.45);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -411,12 +425,13 @@
 
 .modalHeader h3 {
   margin: 0;
+  color: #eafff5;
 }
 
 .modalClose {
   border: none;
-  background: var(--forest-100);
-  color: var(--forest-700);
+  background: rgba(8, 24, 17, 0.8);
+  color: #d7f6e7;
   padding: 6px 12px;
   border-radius: 999px;
   cursor: pointer;
@@ -425,7 +440,7 @@
 
 .modalMeta {
   margin: 0;
-  color: var(--forest-600);
+  color: rgba(214, 248, 232, 0.7);
   font-size: 13px;
 }
 
@@ -435,7 +450,7 @@
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--forest-700);
+  color: rgba(214, 248, 232, 0.85);
 }
 
 .modalActions {

@@ -7,111 +7,221 @@
   --forest-200: #cfe8d6;
   --forest-100: #eef7f0;
   --cream: #f9f6ef;
-  --shadow: rgba(7, 28, 18, 0.12);
+  --shadow: rgba(7, 28, 18, 0.16);
 
   min-height: 100vh;
-  background: radial-gradient(
-      circle at top right,
-      rgba(47, 135, 81, 0.18),
-      transparent 45%
-    ),
-    linear-gradient(160deg, var(--cream), #e3efe6 55%, #d2e6d6);
-  color: var(--forest-900);
+  background:
+    radial-gradient(1200px 520px at 10% -10%, rgba(30, 120, 80, 0.45), transparent 60%),
+    radial-gradient(900px 460px at 90% 0%, rgba(70, 170, 120, 0.35), transparent 65%),
+    linear-gradient(160deg, #0d2b1d 0%, #123827 55%, #164230 100%);
+  color: #e7fff3;
   font-family: var(--font-geist-sans);
   display: flex;
   justify-content: center;
-  padding: 40px 24px 72px;
+  padding: 44px 24px 80px;
 }
 
 .main {
-  width: min(1100px, 100%);
+  width: min(1200px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
   align-items: center;
-  background: white;
-  border-radius: 22px;
-  padding: 16px 20px;
-  box-shadow: 0 16px 32px var(--shadow);
+  background:
+    linear-gradient(120deg, rgba(12, 44, 29, 0.9), rgba(10, 34, 23, 0.8));
+  border-radius: 26px;
+  padding: 10px 18px;
+  box-shadow: 0 24px 46px rgba(6, 18, 12, 0.45);
+  border: 1px solid rgba(88, 172, 126, 0.25);
+  backdrop-filter: blur(12px);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .header h1 {
-  margin: 4px 0 0;
-  font-size: clamp(20px, 2.6vw, 28px);
+  margin: 6px 0 0;
+  font-size: clamp(20px, 2.6vw, 30px);
+  letter-spacing: 0.3px;
+  color: #eafff5;
 }
 
 .kicker {
   margin: 0;
-  font-size: 11px;
-  text-transform: none;
-  letter-spacing: 0.6px;
-  color: var(--forest-600);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(186, 240, 212, 0.85);
   font-weight: 700;
 }
 
-.rows {
+.subhead {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: rgba(214, 248, 232, 0.75);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.metricCard {
+  background: rgba(10, 34, 23, 0.75);
+  border-radius: 20px;
+  padding: 16px 18px;
+  box-shadow: 0 16px 28px rgba(6, 18, 12, 0.35);
+  border: 1px solid rgba(88, 172, 126, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 6px;
 }
 
-.rowCard {
-  background: white;
-  border-radius: 18px;
-  padding: 18px;
-  box-shadow: 0 12px 24px var(--shadow);
-  border: 1px solid rgba(15, 59, 38, 0.08);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
-  gap: 16px;
-  align-items: center;
-}
-
-.rowCard h2 {
+.metricLabel {
   margin: 0;
-  font-size: 14px;
-  color: var(--forest-700);
-}
-
-.value {
-  margin: 6px 0 0;
-  font-size: 24px;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(178, 238, 208, 0.8);
   font-weight: 700;
-  color: var(--forest-900);
 }
 
-.caption {
-  margin: 6px 0 0;
+.metricValue {
+  margin: 0;
+  font-size: clamp(22px, 2.4vw, 30px);
+  font-weight: 800;
+  color: #eafff5;
+}
+
+.metricCaption {
+  margin: 0;
   font-size: 12px;
-  color: var(--forest-600);
+  color: rgba(214, 248, 232, 0.65);
 }
 
-.chartPanel {
-  background: var(--forest-100);
-  border-radius: 14px;
-  padding: 12px 12px;
-  min-height: 160px;
+.chartsSection {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 22px;
+  background: linear-gradient(160deg, rgba(7, 26, 18, 0.95), rgba(12, 44, 29, 0.92));
+  border-radius: 30px;
+  padding: 22px;
+  border: 1px solid rgba(74, 141, 105, 0.35);
+  box-shadow: 0 30px 60px rgba(6, 20, 14, 0.35);
 }
 
-.chartPlaceholder {
-  background: var(--forest-100);
-  border-radius: 14px;
+.chartToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: rgba(10, 34, 23, 0.75);
+  border-radius: 16px;
   padding: 10px 12px;
-  min-height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border: 1px solid rgba(88, 172, 126, 0.35);
+}
+
+.toggleGroup {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toggleButton {
+  border: 1px solid rgba(116, 214, 164, 0.35);
+  background: transparent;
+  color: #d6f3e3;
+  padding: 8px 14px;
+  border-radius: 999px;
   font-size: 12px;
-  color: var(--forest-600);
+  font-weight: 600;
+}
+
+.activeToggle {
+  background: #5fd39c;
+  color: #0b2e1e;
+  border-color: transparent;
+  box-shadow: 0 10px 18px rgba(10, 34, 23, 0.35);
+}
+
+.chartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 6px 10px 0;
+}
+
+.chartTitleWrap {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chartHeader h2 {
+  margin: 0;
+  font-size: clamp(20px, 2.6vw, 30px);
+  letter-spacing: 0.2px;
+  color: #e8fff3;
+}
+
+.chartKicker {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(219, 255, 238, 0.9);
+  font-weight: 700;
+}
+
+.chartSubtitle {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(230, 255, 244, 0.82);
+}
+
+.chartShell {
+  position: relative;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(20, 83, 55, 0.65), rgba(10, 34, 23, 0.5) 55%, rgba(8, 26, 18, 0.7) 100%),
+    linear-gradient(160deg, rgba(6, 20, 14, 0.9), rgba(12, 44, 29, 0.92));
+  border-radius: 28px;
+  padding: 22px 24px 26px;
+  border: 1px solid rgba(88, 172, 126, 0.35);
+  box-shadow:
+    0 30px 60px rgba(6, 18, 12, 0.45),
+    inset 0 0 0 1px rgba(210, 255, 230, 0.08);
+  overflow: hidden;
+}
+
+.chartShell::before {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border-radius: 22px;
+  border: 1px dashed rgba(126, 212, 170, 0.25);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.chartShell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(540px 220px at 100% 0%, rgba(120, 255, 200, 0.15), transparent 70%);
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .muted {
@@ -122,20 +232,20 @@
 
 .chart {
   width: 100%;
-  height: 160px;
+  height: 320px;
 }
 
 .axisLabel {
-  font-size: 9px;
-  fill: #577364;
+  font-size: 10px;
+  fill: rgba(208, 246, 230, 0.7);
 }
 
 .ghostButton {
-  border: 1px solid rgba(15, 59, 38, 0.4);
+  border: 1px solid rgba(118, 214, 164, 0.4);
   border-radius: 999px;
   padding: 8px 16px;
-  background: transparent;
-  color: var(--forest-700);
+  background: rgba(10, 34, 23, 0.6);
+  color: #d7f6e7;
   text-decoration: none;
   font-weight: 600;
 }
@@ -196,8 +306,8 @@
     align-items: flex-start;
   }
 
-  .rowCard {
-    grid-template-columns: 1fr;
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
