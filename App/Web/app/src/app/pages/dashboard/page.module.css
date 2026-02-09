@@ -22,6 +22,67 @@
   position: relative;
 }
 
+.lightningLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.lightningSvg {
+  position: absolute;
+  top: 0;
+  width: 240px;
+  height: 100%;
+  opacity: 0;
+  animation: strike 3s infinite;
+}
+
+.lightningBolt {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lightningGlow {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
+}
+
+.main {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes strike {
+  0% {
+    opacity: 0;
+  }
+  4% {
+    opacity: 0.9;
+  }
+  12% {
+    opacity: 0.45;
+  }
+  18% {
+    opacity: 0.75;
+  }
+  26% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightningSvg {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 .main {
   width: min(1200px, 100%);
   display: flex;

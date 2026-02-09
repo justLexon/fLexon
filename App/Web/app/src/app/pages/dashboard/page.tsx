@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [waterEndDate, setWaterEndDate] = useState("");
   const [weightStartDate, setWeightStartDate] = useState("");
   const [weightEndDate, setWeightEndDate] = useState("");
+  const [strike, setStrike] = useState({ id: 0, x: 50, seed: 0, flip: 1 });
   const loadingTimeoutRef = useRef(null);
   const requestIdRef = useRef(0);
   const controllerRef = useRef(null);
@@ -139,6 +140,19 @@ export default function Dashboard() {
         loadingTimeoutRef.current = null;
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setStrike((prev) => ({
+        id: prev.id + 1,
+        x: 18 + Math.floor(Math.random() * 64),
+        seed: (prev.seed + 1) % 3,
+        flip: prev.id % 2 === 0 ? 1 : -1,
+      }));
+    }, 3000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
@@ -392,6 +406,64 @@ export default function Dashboard() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.lightningLayer} aria-hidden="true">
+        <svg
+          key={strike.id}
+          className={styles.lightningSvg}
+          style={{
+            left: `${strike.x}%`,
+            transform: `translateX(-50%) rotate(${strike.flip * 6}deg) scaleX(${strike.flip})`,
+          }}
+          viewBox="0 0 120 800"
+          preserveAspectRatio="xMidYMin meet"
+        >
+          <defs>
+            <linearGradient id="boltCore" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#d7fff3" />
+              <stop offset="55%" stopColor="#7cf7d6" />
+              <stop offset="100%" stopColor="#3dc9a0" />
+            </linearGradient>
+            <filter id="boltGlow" x="-50%" y="-20%" width="200%" height="140%">
+              <feGaussianBlur stdDeviation="6" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <path
+            className={styles.lightningGlow}
+            d={
+              strike.seed === 0
+                ? "M60 0 L70 140 L50 260 L72 420 L48 560 L64 800"
+                : strike.seed === 1
+                ? "M60 0 L68 160 L46 280 L70 460 L50 620 L62 800"
+                : "M60 0 L72 150 L52 300 L74 480 L54 640 L66 800"
+            }
+            stroke="#7cf7d6"
+            strokeWidth="10"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            filter="url(#boltGlow)"
+          />
+          <path
+            className={styles.lightningBolt}
+            d={
+              strike.seed === 0
+                ? "M60 0 L70 140 L50 260 L72 420 L48 560 L64 800"
+                : strike.seed === 1
+                ? "M60 0 L68 160 L46 280 L70 460 L50 620 L62 800"
+                : "M60 0 L72 150 L52 300 L74 480 L54 640 L66 800"
+            }
+            stroke="url(#boltCore)"
+            strokeWidth="4"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
