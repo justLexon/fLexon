@@ -38,3 +38,20 @@ exports.updateWater = async (req, res) => {
         res.status(500).json({ error: "Failed to update water log" });
     }
 };
+
+exports.deleteWater = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const deleted = await waterService.deleteWater(req.userId, id);
+
+        if (!deleted) {
+            return res.status(404).json({ error: "Water log not found" });
+        }
+
+        res.json({ success: true, data: deleted });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to delete water log" });
+    }
+};

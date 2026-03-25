@@ -114,6 +114,34 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.globeScene} aria-hidden="true">
+        <div className={styles.electronField}>
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+          <span className={styles.electron} />
+        </div>
+        <div className={styles.globeCluster}>
+          <div className={`${styles.globe} ${styles.globePrimary}`}>
+            <div className={styles.globeGlow} />
+            <div className={styles.globeTexture} />
+            <div className={styles.globeShine} />
+            <div className={styles.globeBand}>fLexon</div>
+          </div>
+          <div className={`${styles.globe} ${styles.globeSecondary}`} />
+          <div className={`${styles.globe} ${styles.globeTertiary}`} />
+          <div className={styles.globeOrbit} />
+        </div>
+        <div className={styles.globeMist} />
+      </div>
       <main className={styles.main}>
         <header className={styles.hero}>
           <p className={styles.kicker}>Daily wellness, simplified</p>

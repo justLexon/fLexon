@@ -385,6 +385,26 @@ export default function GlobalStatsPage() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.auroraLayer} aria-hidden="true">
+        <div className={styles.aurora} />
+        <div className={styles.aurora} />
+        <div className={styles.aurora} />
+        <div className={styles.meridianGrid} />
+        <div className={styles.constellationArc} />
+        <div className={styles.constellationArc} />
+        <div className={styles.pulseBeacons}>
+          <span className={styles.beacon} />
+          <span className={styles.beacon} />
+          <span className={styles.beacon} />
+          <span className={styles.beacon} />
+          <span className={styles.beacon} />
+          <span className={styles.beacon} />
+        </div>
+        <div className={styles.globalTicker}>
+          <span>FLEXON • GLOBAL ATLAS • HYDRATION • WEIGHT •</span>
+          <span>FLEXON • GLOBAL ATLAS • HYDRATION • WEIGHT •</span>
+        </div>
+      </div>
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
@@ -491,4 +511,3 @@ export default function GlobalStatsPage() {
     </div>
   );
 }
-

@@ -39,3 +39,13 @@ exports.updateWater = async (userId, id, amount) => {
 
     return result[0];
 };
+
+exports.deleteWater = async (userId, id) => {
+    const result = await sql`
+        DELETE FROM water_logs
+        WHERE id = ${id} and user_id = ${userId}
+        RETURNING *
+    `;
+
+    return result[0];
+};

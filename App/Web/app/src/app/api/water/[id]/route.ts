@@ -36,4 +36,42 @@ export async function PUT(request, context) {
   }
 
   return NextResponse.json(json);
-}
+};
+
+export async function DELETE(request, context) {
+  const { token, response } = withAuth(request);
+  if (!token) return response;
+
+  const { id } = context.params;
+  let res;
+
+  try {
+    res = await fetchWithRetry(
+      `${API_URL}/water/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      },
+      1,
+      15000
+    );
+  } catch (err) {
+    if (isAbortError(err)) {
+      return NextResponse.json({ error: "Backend timeout" }, { status: 504 });
+    }
+    return NextResponse.json({ error: "Upstream error" }, { status: 502 });
+  }
+
+  const { json, text } = await jsonResponse(res);
+  if (!res.ok) {
+    return NextResponse.json(
+      { error: json?.error || text || "Failed to delete water" },
+      { status: res.status }
+    );
+  }
+
+  return NextResponse.json(json);
+};

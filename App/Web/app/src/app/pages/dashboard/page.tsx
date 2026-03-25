@@ -192,6 +192,34 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteWater = async () => {
+    if (!selectedLog) return;
+
+    try {
+      setIsSaving(true);
+
+      const res = await fetch(`/api/water/${selectedLog.id}`, {
+        method: "DELETE",
+        cache: "no-store",
+      });
+      
+      const { text, json } = await readResponse(res);
+      const data = json || {};
+      if (!res.ok) {
+        setError(data.error || text || "Failed to delete water log");
+        setIsSaving(false);
+        return;
+      }
+
+      setWaterLogs((prev) => prev.filter((log) => log.id !== selectedLog.id));
+      closeEditModal;
+    } catch (err) {
+      console.error(err);
+      setError("Network error");
+      setIsSaving(false);
+    }
+  };
+
   const handleAddWeight = async (event) => {
     event?.preventDefault();
     event?.stopPropagation();
@@ -833,6 +861,14 @@ export default function Dashboard() {
                   disabled={isSaving}
                 >
                   {isSaving ? "Saving..." : "Save"}
+                </button>
+                <button
+                  className={styles.ghostButton}
+                  type="button"
+                  onClick={handleDeleteWater}
+                  disabled={isSaving}
+                >
+                  {isSaving ? "Working..." : "Delete"}
                 </button>
               </div>
             </div>
