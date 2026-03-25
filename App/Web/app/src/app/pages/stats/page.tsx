@@ -4,6 +4,28 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import styles from "./page.module.css";
 
+const buildStatsMolecules = (count) => {
+  return Array.from({ length: count }, (_, index) => {
+    const seed = index + 1;
+    const x = (seed * 17) % 92;
+    const y = (seed * 23) % 78;
+    const scale = 0.34 + ((seed * 7) % 20) / 100;
+    const rotation = ((seed * 29) % 40) - 20;
+    const duration = 18 + (seed % 7) * 2;
+    const delay = -(seed % 9) * 1.8;
+
+    return {
+      id: `stats-molecule-${seed}`,
+      x,
+      y,
+      scale,
+      rotation,
+      duration,
+      delay,
+    };
+  });
+};
+
 export default function GlobalStatsPage() {
   const router = useRouter();
   const [stats, setStats] = useState(null);
@@ -146,6 +168,17 @@ export default function GlobalStatsPage() {
 
   const waterSeries = buildSeries(stats.water_daily_series);
   const weightSeries = buildSeries(stats.weight_daily_series);
+  const populatedWaterDays = waterSeries.filter((point) => point.hasValue).length;
+  const inferredWaterRecordCount = Math.max(
+    8,
+    Math.min(
+      40,
+      Math.round(
+        populatedWaterDays * 1.4 + Number(stats.water_all_time_avg ?? 0) / 120
+      )
+    )
+  );
+  const statsMolecules = buildStatsMolecules(inferredWaterRecordCount);
 
   const renderChart = (series, color, yLabel, chartId, unit) => {
     if (!series.length || series.every((p) => !p.hasValue)) {
@@ -171,7 +204,30 @@ export default function GlobalStatsPage() {
         padding.top + innerHeight - ((p.value - min) / range) * innerHeight;
       return { x, y, date: p.date, value: p.value };
     });
+    const hoverZones = coordinates.map((point, index) => {
+      const previousX = index > 0 ? coordinates[index - 1].x : padding.left + barInset;
+      const nextX =
+        index < coordinates.length - 1
+          ? coordinates[index + 1].x
+          : padding.left + barInset + usableWidth;
+      const leftEdge = index === 0 ? padding.left + barInset : (previousX + point.x) / 2;
+      const rightEdge =
+        index === coordinates.length - 1
+          ? padding.left + barInset + usableWidth
+          : (point.x + nextX) / 2;
+
+      return {
+        index,
+        x: leftEdge,
+        width: Math.max(18, rightEdge - leftEdge),
+      };
+    });
     const points = coordinates.map((p) => `${p.x},${p.y}`).join(" ");
+    const areaPoints = [
+      `${coordinates[0]?.x ?? padding.left},${padding.top + innerHeight}`,
+      ...coordinates.map((p) => `${p.x},${p.y}`),
+      `${coordinates[coordinates.length - 1]?.x ?? padding.left},${padding.top + innerHeight}`,
+    ].join(" ");
 
     const firstDate = series[0]?.date;
     const lastDate = series[series.length - 1]?.date;
@@ -188,6 +244,7 @@ export default function GlobalStatsPage() {
       hoveredIndex !== null && hoveredIndex >= 0 && hoveredIndex < coordinates.length
         ? coordinates[hoveredIndex]
         : null;
+    const latestPoint = coordinates[coordinates.length - 1] || null;
     const valueLabel =
       hoveredPoint && Number.isFinite(hoveredPoint.value)
         ? `${hoveredPoint.value.toFixed(1)} ${unit}`
@@ -219,9 +276,13 @@ export default function GlobalStatsPage() {
         onMouseLeave={() => setHover({ chart: null, index: null })}
       >
         <defs>
-          <linearGradient id="chartGlow" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={`${chartId}Glow`} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity="0.28" />
             <stop offset="100%" stopColor={color} stopOpacity="0.04" />
+          </linearGradient>
+          <linearGradient id={`${chartId}Area`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.32" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
           </linearGradient>
         </defs>
         <line
@@ -264,33 +325,81 @@ export default function GlobalStatsPage() {
         >
           {yLabel}
         </text>
+        {hoveredPoint && (
+          <line
+            x1={hoveredPoint.x}
+            y1={padding.top}
+            x2={hoveredPoint.x}
+            y2={padding.top + innerHeight}
+            stroke="rgba(245, 230, 202, 0.22)"
+            strokeDasharray="4 6"
+          />
+        )}
+        {hoverZones.map((zone) => (
+          <rect
+            key={`${chartId}-hover-${zone.index}`}
+            x={zone.x}
+            y={padding.top}
+            width={zone.width}
+            height={innerHeight}
+            fill="transparent"
+            onMouseEnter={() => setHover({ chart: chartId, index: zone.index })}
+          />
+        ))}
         {chartType === "line" ? (
           <>
+            <polygon
+              points={areaPoints}
+              fill={`url(#${chartId}Area)`}
+            />
             <polyline
               points={points}
               fill="none"
               stroke={color}
               strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
             {coordinates.map((point, index) => (
               <g key={`${point.date}-${index}`}>
-                <circle
-                  cx={point.x}
-                  cy={point.y}
-                  r={10}
-                  fill="transparent"
-                  onMouseEnter={() => setHover({ chart: chartId, index })}
-                />
                 {hoveredIndex === index && (
-                  <circle
-                    cx={point.x}
-                    cy={point.y}
-                    r={5}
-                    fill={color}
-                  />
+                  <>
+                    <circle
+                      cx={point.x}
+                      cy={point.y}
+                      r={10}
+                      fill={color}
+                      opacity="0.18"
+                    />
+                    <circle
+                      cx={point.x}
+                      cy={point.y}
+                      r={5}
+                      fill={color}
+                    />
+                  </>
                 )}
               </g>
             ))}
+            {latestPoint && hoveredIndex !== coordinates.length - 1 && (
+              <>
+                <circle
+                  cx={latestPoint.x}
+                  cy={latestPoint.y}
+                  r={10}
+                  fill={color}
+                  opacity="0.14"
+                />
+                <circle
+                  cx={latestPoint.x}
+                  cy={latestPoint.y}
+                  r={4.5}
+                  fill={color}
+                  stroke="rgba(248, 243, 234, 0.9)"
+                  strokeWidth="1.5"
+                />
+              </>
+            )}
           </>
         ) : (
           coordinates.map((point, index) => {
@@ -312,8 +421,7 @@ export default function GlobalStatsPage() {
                 height={Math.max(1, height)}
                 rx="6"
                 fill={color}
-                opacity="0.85"
-                onMouseEnter={() => setHover({ chart: chartId, index })}
+                opacity={hoveredIndex === index ? "1" : "0.82"}
               />
             );
           })
@@ -323,22 +431,22 @@ export default function GlobalStatsPage() {
             <rect
               x={tooltipX}
               y={tooltipY}
-              width={tooltipWidth}
-              height={tooltipHeight}
-              rx="8"
-              fill="rgba(8, 24, 17, 0.9)"
-              stroke="rgba(210, 255, 235, 0.35)"
+              width={tooltipWidth + 8}
+              height={tooltipHeight + 4}
+              rx="10"
+              fill="rgba(11, 24, 20, 0.94)"
+              stroke="rgba(245, 230, 202, 0.26)"
             />
             <text
-              x={tooltipX + 10}
-              y={tooltipY + 16}
+              x={tooltipX + 12}
+              y={tooltipY + 17}
               className={styles.axisLabel}
             >
               {dateLabel}
             </text>
             <text
-              x={tooltipX + 10}
-              y={tooltipY + 32}
+              x={tooltipX + 12}
+              y={tooltipY + 34}
               className={styles.axisLabel}
             >
               {valueLabel}
@@ -389,9 +497,43 @@ export default function GlobalStatsPage() {
         <div className={styles.aurora} />
         <div className={styles.aurora} />
         <div className={styles.aurora} />
+        <div className={styles.energyRing} />
+        <div className={styles.energyRing} />
+        <div className={styles.energyRing} />
         <div className={styles.meridianGrid} />
         <div className={styles.constellationArc} />
         <div className={styles.constellationArc} />
+        <div className={styles.driftStream}>
+          <span className={styles.streamDot} />
+          <span className={styles.streamDot} />
+          <span className={styles.streamDot} />
+          <span className={styles.streamDot} />
+          <span className={styles.streamDot} />
+          <span className={styles.streamDot} />
+        </div>
+        <div className={styles.dataRibbon} />
+        <div className={styles.dataRibbon} />
+        <div className={styles.statsMoleculeLayer}>
+          {statsMolecules.map((molecule) => (
+            <div
+              key={molecule.id}
+              className={styles.statsWaterMolecule}
+              style={{
+                left: `${molecule.x}%`,
+                top: `${molecule.y}%`,
+                transform: `rotate(${molecule.rotation}deg) scale(${molecule.scale})`,
+                animationDuration: `${molecule.duration}s`,
+                animationDelay: `${molecule.delay}s`,
+              }}
+            >
+              <span className={`${styles.statsAtom} ${styles.statsHydrogen} ${styles.statsHydrogenLeft}`} />
+              <span className={`${styles.statsBond} ${styles.statsBondLeft}`} />
+              <span className={`${styles.statsAtom} ${styles.statsOxygen}`} />
+              <span className={`${styles.statsBond} ${styles.statsBondRight}`} />
+              <span className={`${styles.statsAtom} ${styles.statsHydrogen} ${styles.statsHydrogenRight}`} />
+            </div>
+          ))}
+        </div>
         <div className={styles.pulseBeacons}>
           <span className={styles.beacon} />
           <span className={styles.beacon} />

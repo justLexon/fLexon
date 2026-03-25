@@ -1,8 +1,31 @@
 const waterService = require("../services/waterService.js");
 
+const validateWaterAmount = (amount) => {
+    const numericAmount = Number(amount);
+
+    if (!Number.isFinite(numericAmount)) {
+        return "Water amount must be a valid number";
+    }
+
+    if (numericAmount <= 0) {
+        return "Water amount must be greater than 0 ml";
+    }
+
+    if (numericAmount < 50 || numericAmount > 5000) {
+        return "Water amount must be between 50 ml and 5000 ml";
+    }
+
+    return null;
+};
+
 exports.addWater = async (req, res) => {
     const { amount } = req.body;
     const userId = req.userId;
+    const validationError = validateWaterAmount(amount);
+
+    if (validationError) {
+        return res.status(400).json({ error: validationError });
+    }
 
     const entry = await waterService.addWater(userId, amount);
 
@@ -25,6 +48,12 @@ exports.updateWater = async (req, res) => {
 
     if (amount === undefined || amount === null) {
         return res.status(400).json({ error: "Amount required" });
+    }
+
+    const validationError = validateWaterAmount(amount);
+
+    if (validationError) {
+        return res.status(400).json({ error: validationError });
     }
 
     try {

@@ -4,6 +4,106 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 
+const MOLECULE_BASE_SIZE = 180;
+const MAX_SPEED = 0.18;
+const MOLECULE_PAD_TOP = -50;
+const MOLECULE_PAD_RIGHT = 70;
+const MOLECULE_PAD_BOTTOM = 50;
+const MOLECULE_PAD_LEFT = -50;
+const REPULSION_DISTANCE = 100;
+const REPULSION_FORCE = 3;
+const MIN_MOLECULE_SCALE = 0.22;
+const MAX_MOLECULE_SCALE = 0.62;
+const MAX_SCALE_ML = 2000;
+const WATER_MIN_ML = 50;
+const WATER_MAX_ML = 5000;
+const WEIGHT_MIN_LBS = 50;
+const WEIGHT_MAX_LBS = 700;
+
+const getFieldBounds = () => {
+  if (typeof document === "undefined") {
+    return { width: 0, height: 0 };
+  }
+
+  const doc = document.documentElement;
+  const body = document.body;
+
+  return {
+    width: window.innerWidth,
+    height: Math.max(
+      window.innerHeight,
+      doc?.scrollHeight || 0,
+      body?.scrollHeight || 0
+    ),
+  };
+};
+
+const getScaleFromAmount = (amount) => {
+  const numericAmount = Math.max(0, Number(amount) || 0);
+  const normalized = Math.min(1, numericAmount / MAX_SCALE_ML);
+  return (
+    MIN_MOLECULE_SCALE +
+    Math.sqrt(normalized) * (MAX_MOLECULE_SCALE - MIN_MOLECULE_SCALE)
+  );
+};
+
+const createMolecule = (id, width, height, amount) => {
+  const scale = getScaleFromAmount(amount);
+  const renderedSize = MOLECULE_BASE_SIZE * scale;
+  const safeWidth = Math.max(
+    renderedSize + MOLECULE_PAD_LEFT + MOLECULE_PAD_RIGHT,
+    width || 0
+  );
+  const safeHeight = Math.max(
+    renderedSize + MOLECULE_PAD_TOP + MOLECULE_PAD_BOTTOM,
+    height || 0
+  );
+
+  return {
+    id,
+    x:
+      MOLECULE_PAD_LEFT +
+      Math.random() *
+        Math.max(1, safeWidth - renderedSize - MOLECULE_PAD_LEFT - MOLECULE_PAD_RIGHT),
+    y:
+      MOLECULE_PAD_TOP +
+      Math.random() *
+        Math.max(1, safeHeight - renderedSize - MOLECULE_PAD_TOP - MOLECULE_PAD_BOTTOM),
+    vx: (Math.random() - 0.5) * MAX_SPEED * 2,
+    vy: (Math.random() - 0.5) * MAX_SPEED * 2,
+    scale,
+    rotation: -18 + Math.random() * 36,
+  };
+};
+
+const validateWaterAmount = (amount) => {
+  const numericAmount = Number(amount);
+
+  if (!Number.isFinite(numericAmount)) {
+    return "Water amount must be a valid number";
+  }
+
+  if (numericAmount < WATER_MIN_ML || numericAmount > WATER_MAX_ML) {
+    return `Water amount must be between ${WATER_MIN_ML} ml and ${WATER_MAX_ML} ml`;
+  }
+
+  return null;
+};
+
+const validateWeightAmount = (amount) => {
+  const numericAmount = Number(amount);
+
+  if (!Number.isFinite(numericAmount)) {
+    return "Weight amount must be a valid number";
+  }
+
+  if (numericAmount < WEIGHT_MIN_LBS || numericAmount > WEIGHT_MAX_LBS) {
+    return `Weight amount must be between ${WEIGHT_MIN_LBS} and ${WEIGHT_MAX_LBS} lbs`;
+  }
+
+  return null;
+};
+
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -29,10 +129,11 @@ export default function Dashboard() {
   const [waterEndDate, setWaterEndDate] = useState("");
   const [weightStartDate, setWeightStartDate] = useState("");
   const [weightEndDate, setWeightEndDate] = useState("");
-  const [strike, setStrike] = useState({ id: 0, x: 50, seed: 0, flip: 1 });
+  const [molecules, setMolecules] = useState([]);
   const loadingTimeoutRef = useRef(null);
   const requestIdRef = useRef(0);
   const controllerRef = useRef(null);
+  const moleculesRef = useRef([]);
 
   const readResponse = async (res) => {
     const contentType = res.headers.get("content-type") || "";
@@ -143,28 +244,155 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      setStrike((prev) => ({
-        id: prev.id + 1,
-        x: 18 + Math.floor(Math.random() * 64),
-        seed: (prev.seed + 1) % 3,
-        flip: prev.id % 2 === 0 ? 1 : -1,
-      }));
-    }, 3000);
-
-    return () => clearInterval(intervalId);
-  }, []);
-
-  useEffect(() => {
     if (!error) return;
     const timeoutId = setTimeout(() => setError(""), 2000);
     return () => clearTimeout(timeoutId);
   }, [error]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const { width, height } = getFieldBounds();
+    const existingById = new Map(
+      moleculesRef.current.map((molecule) => [String(molecule.id), molecule])
+    );
+
+    const next = waterLogs.map((log) => {
+      const key = String(log.id ?? `${log.created_at}-${log.amount}`);
+      const existing = existingById.get(key);
+      const scale = getScaleFromAmount(log.amount);
+
+      if (existing) {
+        return {
+          ...existing,
+          id: key,
+          scale,
+        };
+      }
+
+      return createMolecule(key, width, height, log.amount);
+    });
+
+    moleculesRef.current = next;
+    setMolecules(next);
+  }, [waterLogs]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let animationFrameId = 0;
+    let lastTime = performance.now();
+
+    const keepInBounds = (molecule, width, height) => {
+      const renderedSize = MOLECULE_BASE_SIZE * molecule.scale;
+      const maxX = Math.max(
+        MOLECULE_PAD_LEFT,
+        width - renderedSize - MOLECULE_PAD_RIGHT
+      );
+      const maxY = Math.max(
+        MOLECULE_PAD_TOP,
+        height - renderedSize - MOLECULE_PAD_BOTTOM
+      );
+
+      if (molecule.x <= MOLECULE_PAD_LEFT) {
+        molecule.x = MOLECULE_PAD_LEFT;
+        molecule.vx = Math.abs(molecule.vx) || MAX_SPEED * 0.5;
+      } else if (molecule.x >= maxX) {
+        molecule.x = maxX;
+        molecule.vx = -Math.abs(molecule.vx) || -MAX_SPEED * 0.5;
+      }
+
+      if (molecule.y <= MOLECULE_PAD_TOP) {
+        molecule.y = MOLECULE_PAD_TOP;
+        molecule.vy = Math.abs(molecule.vy) || MAX_SPEED * 0.5;
+      } else if (molecule.y >= maxY) {
+        molecule.y = maxY;
+        molecule.vy = -Math.abs(molecule.vy) || -MAX_SPEED * 0.5;
+      }
+    };
+
+    const tick = (now) => {
+      const delta = Math.min(32, now - lastTime);
+      lastTime = now;
+      const { width, height } = getFieldBounds();
+      const next = moleculesRef.current.map((molecule) => ({ ...molecule }));
+
+      for (let i = 0; i < next.length; i += 1) {
+        for (let j = i + 1; j < next.length; j += 1) {
+          const current = next[i];
+          const other = next[j];
+          const currentCenterX = current.x + (MOLECULE_BASE_SIZE * current.scale) / 2;
+          const currentCenterY = current.y + (MOLECULE_BASE_SIZE * current.scale) / 2;
+          const otherCenterX = other.x + (MOLECULE_BASE_SIZE * other.scale) / 2;
+          const otherCenterY = other.y + (MOLECULE_BASE_SIZE * other.scale) / 2;
+          const dx = otherCenterX - currentCenterX;
+          const dy = otherCenterY - currentCenterY;
+          const distance = Math.hypot(dx, dy) || 1;
+
+          if (distance < REPULSION_DISTANCE) {
+            const force = ((REPULSION_DISTANCE - distance) / REPULSION_DISTANCE) * REPULSION_FORCE;
+            const offsetX = (dx / distance) * force * delta;
+            const offsetY = (dy / distance) * force * delta;
+            current.vx -= offsetX;
+            current.vy -= offsetY;
+            other.vx += offsetX;
+            other.vy += offsetY;
+          }
+        }
+      }
+
+      for (const molecule of next) {
+        molecule.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, molecule.vx + (Math.random() - 0.5) * 0.002));
+        molecule.vy = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, molecule.vy + (Math.random() - 0.5) * 0.002));
+        molecule.x += molecule.vx * delta;
+        molecule.y += molecule.vy * delta;
+        molecule.rotation += molecule.vx * 0.9;
+        keepInBounds(molecule, width, height);
+      }
+
+      moleculesRef.current = next;
+      setMolecules(next);
+      animationFrameId = window.requestAnimationFrame(tick);
+    };
+
+    animationFrameId = window.requestAnimationFrame(tick);
+
+    const handleResize = () => {
+      const { width, height } = getFieldBounds();
+      moleculesRef.current = moleculesRef.current.map((molecule, index) => {
+        const next = moleculesRef.current[index] || createMolecule(index, width, height, 0);
+        const renderedSize = MOLECULE_BASE_SIZE * next.scale;
+        const maxX = Math.max(
+          MOLECULE_PAD_LEFT,
+          width - renderedSize - MOLECULE_PAD_RIGHT
+        );
+        const maxY = Math.max(
+          MOLECULE_PAD_TOP,
+          height - renderedSize - MOLECULE_PAD_BOTTOM
+        );
+        return {
+          ...next,
+          x: Math.min(Math.max(MOLECULE_PAD_LEFT, next.x), maxX),
+          y: Math.min(Math.max(MOLECULE_PAD_TOP, next.y), maxY),
+        };
+      });
+      setMolecules([...moleculesRef.current]);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
   const handleAddWater = async (event) => {
     event?.preventDefault();
     event?.stopPropagation();
     if (!newWaterAmount) return setError("Enter a water amount");
+    const validationError = validateWaterAmount(newWaterAmount);
+    if (validationError) return setError(validationError);
 
     try {
       const res = await fetch("/api/water", {
@@ -192,13 +420,18 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteWater = async () => {
-    if (!selectedLog) return;
+  const handleDeleteLog = async () => {
+    if (!selectedLog || !modalType) return;
+
+    const endpoint =
+      modalType === "water"
+        ? `/api/water/${selectedLog.id}`
+        : `/api/weight/${selectedLog.id}`;
 
     try {
       setIsSaving(true);
 
-      const res = await fetch(`/api/water/${selectedLog.id}`, {
+      const res = await fetch(endpoint, {
         method: "DELETE",
         cache: "no-store",
       });
@@ -206,13 +439,18 @@ export default function Dashboard() {
       const { text, json } = await readResponse(res);
       const data = json || {};
       if (!res.ok) {
-        setError(data.error || text || "Failed to delete water log");
+        setError(data.error || text || "Failed to delete log");
         setIsSaving(false);
         return;
       }
 
-      setWaterLogs((prev) => prev.filter((log) => log.id !== selectedLog.id));
-      closeEditModal;
+      if (modalType === "water") {
+        setWaterLogs((prev) => prev.filter((log) => log.id !== selectedLog.id));
+      } else {
+        setWeightLogs((prev) => prev.filter((log) => log.id !== selectedLog.id));
+      }
+
+      closeEditModal();
     } catch (err) {
       console.error(err);
       setError("Network error");
@@ -224,6 +462,8 @@ export default function Dashboard() {
     event?.preventDefault();
     event?.stopPropagation();
     if (!newWeightAmount) return setError("Enter a weight amount");
+    const validationError = validateWeightAmount(newWeightAmount);
+    if (validationError) return setError(validationError);
 
     try {
       const res = await fetch("/api/weight", {
@@ -343,6 +583,12 @@ export default function Dashboard() {
   const handleSaveEdit = async () => {
     if (!selectedLog || !modalType) return;
     if (!editAmount) return setError("Enter a valid amount");
+    const validationError =
+      modalType === "water"
+        ? validateWaterAmount(editAmount)
+        : validateWeightAmount(editAmount);
+
+    if (validationError) return setError(validationError);
 
     const endpoint =
       modalType === "water"
@@ -430,67 +676,53 @@ export default function Dashboard() {
     );
   }
 
+  if (loading && !user) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.moleculeLayer} aria-hidden="true">
+          <span className={`${styles.molecule} ${styles.moleculeOne}`} />
+          <span className={`${styles.molecule} ${styles.moleculeTwo}`} />
+          <span className={`${styles.molecule} ${styles.moleculeThree}`} />
+          <span className={`${styles.molecule} ${styles.moleculeFour}`} />
+          <span className={`${styles.molecule} ${styles.moleculeFive}`} />
+          <span className={`${styles.molecule} ${styles.moleculeSix}`} />
+          <span className={`${styles.molecule} ${styles.moleculeSeven}`} />
+          <span className={`${styles.molecule} ${styles.moleculeEight}`} />
+        </div>
+        <main className={styles.main}>
+          <div className={styles.loadingWrap}>
+            <div className={styles.loadingCard}>
+              <span className={styles.loadingDot} />
+              <span className={styles.loadingDot} />
+              <span className={styles.loadingDot} />
+              <p className={styles.loadingText}>Loading dashboard...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   const userEmail = user?.email ?? "Loading…";
 
   return (
     <div className={styles.page}>
-      <div className={styles.lightningLayer} aria-hidden="true">
-        <svg
-          key={strike.id}
-          className={styles.lightningSvg}
-          style={{
-            left: `${strike.x}%`,
-            transform: `translateX(-50%) rotate(${strike.flip * 6}deg) scaleX(${strike.flip})`,
-          }}
-          viewBox="0 0 120 800"
-          preserveAspectRatio="xMidYMin meet"
-        >
-          <defs>
-            <linearGradient id="boltCore" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#d7fff3" />
-              <stop offset="55%" stopColor="#7cf7d6" />
-              <stop offset="100%" stopColor="#3dc9a0" />
-            </linearGradient>
-            <filter id="boltGlow" x="-50%" y="-20%" width="200%" height="140%">
-              <feGaussianBlur stdDeviation="6" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-          <path
-            className={styles.lightningGlow}
-            d={
-              strike.seed === 0
-                ? "M60 0 L70 140 L50 260 L72 420 L48 560 L64 800"
-                : strike.seed === 1
-                ? "M60 0 L68 160 L46 280 L70 460 L50 620 L62 800"
-                : "M60 0 L72 150 L52 300 L74 480 L54 640 L66 800"
-            }
-            stroke="#7cf7d6"
-            strokeWidth="10"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            filter="url(#boltGlow)"
-          />
-          <path
-            className={styles.lightningBolt}
-            d={
-              strike.seed === 0
-                ? "M60 0 L70 140 L50 260 L72 420 L48 560 L64 800"
-                : strike.seed === 1
-                ? "M60 0 L68 160 L46 280 L70 460 L50 620 L62 800"
-                : "M60 0 L72 150 L52 300 L74 480 L54 640 L66 800"
-            }
-            stroke="url(#boltCore)"
-            strokeWidth="4"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+      <div className={styles.moleculeLayer} aria-hidden="true">
+        {molecules.map((molecule) => (
+          <div
+            key={molecule.id}
+            className={styles.waterMolecule}
+            style={{
+              transform: `translate3d(${molecule.x}px, ${molecule.y}px, 0) rotate(${molecule.rotation}deg) scale(${molecule.scale})`,
+            }}
+          >
+            <span className={`${styles.atom} ${styles.atomHydrogen} ${styles.atomHydrogenLeft}`} />
+            <span className={`${styles.bond} ${styles.bondLeft}`} />
+            <span className={`${styles.atom} ${styles.atomOxygen}`} />
+            <span className={`${styles.bond} ${styles.bondRight}`} />
+            <span className={`${styles.atom} ${styles.atomHydrogen} ${styles.atomHydrogenRight}`} />
+          </div>
+        ))}
       </div>
       <main className={styles.main}>
         <header className={styles.header}>
@@ -658,9 +890,20 @@ export default function Dashboard() {
                       className={styles.logButton}
                       onClick={() => openEditModal("water", log)}
                     >
-                      <span className={styles.logAmount}>{log.amount} ml</span>
-                      <span className={styles.logDate}>
-                        {new Date(log.created_at).toLocaleString()}
+                      <span className={styles.logLead}>
+                        <span className={styles.logIcon} aria-hidden="true">
+                          W
+                        </span>
+                        <span className={styles.logContent}>
+                          <span className={styles.logAmount}>{log.amount}</span>
+                          <span className={styles.logMeta}>Water entry</span>
+                        </span>
+                      </span>
+                      <span className={styles.logSide}>
+                        <span className={styles.logBadge}>ml</span>
+                        <span className={styles.logDate}>
+                          {new Date(log.created_at).toLocaleString()}
+                        </span>
                       </span>
                     </button>
                   </li>
@@ -775,9 +1018,20 @@ export default function Dashboard() {
                       className={styles.logButton}
                       onClick={() => openEditModal("weight", log)}
                     >
-                      <span className={styles.logAmount}>{log.amount} lbs</span>
-                      <span className={styles.logDate}>
-                        {new Date(log.created_at).toLocaleString()}
+                      <span className={styles.logLead}>
+                        <span className={styles.logIcon} aria-hidden="true">
+                          G
+                        </span>
+                        <span className={styles.logContent}>
+                          <span className={styles.logAmount}>{log.amount}</span>
+                          <span className={styles.logMeta}>Weight entry</span>
+                        </span>
+                      </span>
+                      <span className={styles.logSide}>
+                        <span className={styles.logBadge}>lbs</span>
+                        <span className={styles.logDate}>
+                          {new Date(log.created_at).toLocaleString()}
+                        </span>
                       </span>
                     </button>
                   </li>
@@ -865,7 +1119,7 @@ export default function Dashboard() {
                 <button
                   className={styles.ghostButton}
                   type="button"
-                  onClick={handleDeleteWater}
+                  onClick={handleDeleteLog}
                   disabled={isSaving}
                 >
                   {isSaving ? "Working..." : "Delete"}
@@ -878,4 +1132,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

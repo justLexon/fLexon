@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { API_URL, fetchWithRetry, jsonResponse, withAuth, isAbortError } from "../../_utils";
 
-export async function PUT(request, context) {
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const { token, response } = withAuth(request);
   if (!token) return response;
 
   const body = await request.json();
-  const { id } = context.params;
+  const { id } = await params;
   let res;
   try {
     res = await fetchWithRetry(
@@ -33,6 +36,46 @@ export async function PUT(request, context) {
   const { json, text } = await jsonResponse(res);
   if (!res.ok) {
     return NextResponse.json({ error: json?.error || text || "Failed to update weight" }, { status: res.status });
+  }
+
+  return NextResponse.json(json);
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { token, response } = withAuth(request);
+  if (!token) return response;
+
+  const { id } = await params;
+  let res;
+  try {
+    res = await fetchWithRetry(
+      `${API_URL}/weight/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      },
+      1,
+      15000
+    );
+  } catch (err) {
+    if (isAbortError(err)) {
+      return NextResponse.json({ error: "Backend timeout" }, { status: 504 });
+    }
+    return NextResponse.json({ error: "Upstream error" }, { status: 502 });
+  }
+
+  const { json, text } = await jsonResponse(res);
+  if (!res.ok) {
+    return NextResponse.json(
+      { error: json?.error || text || "Failed to delete weight" },
+      { status: res.status }
+    );
   }
 
   return NextResponse.json(json);

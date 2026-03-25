@@ -37,3 +37,13 @@ exports.updateWeight = async (userId, id, amount) => {
 
     return result[0];
 };
+
+exports.deleteWeight = async (userId, id) => {
+    const result = await sql`
+        DELETE FROM weight_logs
+        WHERE id = ${id} AND user_id = ${userId}
+        RETURNING *
+    `;
+
+    return result[0];
+};
